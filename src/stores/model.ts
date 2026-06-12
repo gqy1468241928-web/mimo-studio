@@ -88,14 +88,14 @@ export const useModelStore = defineStore('model', () => {
   const searchQuery = ref('')
 
   // 筛选类型
-  const filterType = ref<string | null>(null)
+  const filterType = ref<string>('')
 
   // 计算属性：过滤后的模型列表
   const filteredModels = computed(() => {
     let result = models.value
 
     // 按类型筛选
-    if (filterType.value) {
+    if (filterType.value && filterType.value !== '') {
       result = result.filter(m => m.type === filterType.value)
     }
 

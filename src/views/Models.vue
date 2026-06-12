@@ -50,7 +50,7 @@
           </template>
         </n-input>
         <n-radio-group v-model:value="modelStore.filterType">
-          <n-radio-button :value="null">全部</n-radio-button>
+          <n-radio-button value="">全部</n-radio-button>
           <n-radio-button value="chat">对话</n-radio-button>
           <n-radio-button value="tts">语音</n-radio-button>
           <n-radio-button value="asr">识别</n-radio-button>
