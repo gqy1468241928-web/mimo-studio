@@ -124,21 +124,50 @@ const initCharts = () => {
     const daily = statisticsStore.dailyUsage
     trendChart.value.setOption({
       tooltip: { trigger: 'axis' },
-      legend: { data: ['对话', '语音合成', '语音识别'], textStyle: { color: '#aaa' } },
-      grid: { left: '3%', right: '4%', bottom: '3%', containLabel: true },
+      legend: { 
+        data: ['对话', '语音合成', '语音识别'], 
+        textStyle: { color: '#aaa' },
+        top: 0,
+        right: 0,
+      },
+      grid: { left: '10%', right: '4%', bottom: '15%', top: '15%', containLabel: true },
       xAxis: {
         type: 'category',
         data: daily.map(d => d.date),
-        axisLabel: { color: '#aaa' },
+        axisLabel: { 
+          color: '#aaa',
+          rotate: 0,
+          interval: 0,
+        },
       },
       yAxis: {
         type: 'value',
         axisLabel: { color: '#aaa' },
+        minInterval: 1,
       },
       series: [
-        { name: '对话', type: 'bar', stack: 'total', data: daily.map(d => d.chat), itemStyle: { color: '#18a058' } },
-        { name: '语音合成', type: 'bar', stack: 'total', data: daily.map(d => d.tts), itemStyle: { color: '#2080f0' } },
-        { name: '语音识别', type: 'bar', stack: 'total', data: daily.map(d => d.asr), itemStyle: { color: '#f0a020' } },
+        { 
+          name: '对话', 
+          type: 'bar', 
+          stack: 'total', 
+          data: daily.map(d => d.chat), 
+          itemStyle: { color: '#18a058' },
+          barWidth: '40%',
+        },
+        { 
+          name: '语音合成', 
+          type: 'bar', 
+          stack: 'total', 
+          data: daily.map(d => d.tts), 
+          itemStyle: { color: '#2080f0' },
+        },
+        { 
+          name: '语音识别', 
+          type: 'bar', 
+          stack: 'total', 
+          data: daily.map(d => d.asr), 
+          itemStyle: { color: '#f0a020' },
+        },
       ],
     })
   }
