@@ -11,45 +11,45 @@ const router = createRouter({
     },
     {
       path: '/',
-      name: 'dashboard',
-      component: () => import('@/views/Dashboard.vue'),
-      meta: { requiresAuth: true }
-    },
-    {
-      path: '/models',
-      name: 'models',
-      component: () => import('@/views/Models.vue'),
-      meta: { requiresAuth: true }
-    },
-    {
-      path: '/chat',
-      name: 'chat',
-      component: () => import('@/views/Chat.vue'),
-      meta: { requiresAuth: true }
-    },
-    {
-      path: '/tts',
-      name: 'tts',
-      component: () => import('@/views/TTS.vue'),
-      meta: { requiresAuth: true }
-    },
-    {
-      path: '/settings',
-      name: 'settings',
-      component: () => import('@/views/Settings.vue'),
-      meta: { requiresAuth: true }
-    },
-    {
-      path: '/statistics',
-      name: 'statistics',
-      component: () => import('@/views/Statistics.vue'),
-      meta: { requiresAuth: true }
-    },
-    {
-      path: '/files',
-      name: 'files',
-      component: () => import('@/views/Files.vue'),
-      meta: { requiresAuth: true }
+      component: () => import('@/layouts/MainLayout.vue'),
+      meta: { requiresAuth: true },
+      children: [
+        {
+          path: '',
+          name: 'dashboard',
+          component: () => import('@/views/Dashboard.vue')
+        },
+        {
+          path: 'models',
+          name: 'models',
+          component: () => import('@/views/Models.vue')
+        },
+        {
+          path: 'chat',
+          name: 'chat',
+          component: () => import('@/views/Chat.vue')
+        },
+        {
+          path: 'tts',
+          name: 'tts',
+          component: () => import('@/views/TTS.vue')
+        },
+        {
+          path: 'settings',
+          name: 'settings',
+          component: () => import('@/views/Settings.vue')
+        },
+        {
+          path: 'statistics',
+          name: 'statistics',
+          component: () => import('@/views/Statistics.vue')
+        },
+        {
+          path: 'files',
+          name: 'files',
+          component: () => import('@/views/Files.vue')
+        }
+      ]
     }
   ]
 })
