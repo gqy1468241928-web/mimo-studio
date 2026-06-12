@@ -21,6 +21,7 @@
     "vue": "^3.5.38",
     "vue-router": "^4.6.4"
   },
+  "onlyBuiltDependencies": ["esbuild", "vue-demi"],
   "devDependencies": {
     "@playwright/test": "^1.60.0",
     "@vitejs/plugin-vue": "^5.2.4",
