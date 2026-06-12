@@ -1,104 +1,117 @@
 <template>
-  <n-layout has-sider style="height: 100vh">
-    <n-layout-sider
-      bordered
-      :width="220"
-      :native-scrollbar="false"
-      style="height: 100vh"
-    >
-      <div style="display: flex; flex-direction: column; height: 100%">
-        <!-- Logo -->
-        <div class="logo">
-          <h2>MiMo 工作台</h2>
-        </div>
-
-        <!-- 菜单 -->
-        <div style="flex: 1; overflow-y: auto">
-          <n-menu
-            :value="activeKey"
-            :options="menuOptions"
-            @update:value="handleMenuChange"
-          />
+  <div class="app-layout">
+    <!-- 侧边栏 -->
+    <aside class="sidebar" :class="{ collapsed: sidebarCollapsed }">
+      <!-- Logo -->
+      <div class="sidebar-header">
+        <div class="logo" @click="sidebarCollapsed = !sidebarCollapsed">
+          <span class="logo-icon">M</span>
+          <span v-if="!sidebarCollapsed" class="logo-text">MiMo Studio</span>
         </div>
       </div>
-    </n-layout-sider>
 
-    <n-layout>
-      <n-layout-header bordered style="height: 56px; padding: 0 24px; display: flex; align-items: center; justify-content: space-between">
-        <n-space align="center">
-          <n-text strong style="font-size: 16px">{{ currentTitle }}</n-text>
-        </n-space>
-        <n-space align="center">
-          <n-button quaternary circle @click="toggleTheme">
-            <template #icon>
-              <n-icon><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="5"/><line x1="12" y1="1" x2="12" y2="3"/><line x1="12" y1="21" x2="12" y2="23"/><line x1="4.22" y1="4.22" x2="5.64" y2="5.64"/><line x1="18.36" y1="18.36" x2="19.78" y2="19.78"/><line x1="1" y1="12" x2="3" y2="12"/><line x1="21" y1="12" x2="23" y2="12"/><line x1="4.22" y1="19.78" x2="5.64" y2="18.36"/><line x1="18.36" y1="5.64" x2="19.78" y2="4.22"/></svg></n-icon>
-            </template>
-          </n-button>
-          <n-avatar :size="32" round :style="{ backgroundColor: '#18a058' }">
-            {{ username.charAt(0).toUpperCase() }}
-          </n-avatar>
-        </n-space>
-      </n-layout-header>
+      <!-- 菜单 -->
+      <nav class="sidebar-nav">
+        <!-- 对话模块 -->
+        <div class="nav-group">
+          <div class="nav-group-label" v-if="!sidebarCollapsed">对话</div>
+          <router-link to="/chat" class="nav-item" :class="{ active: $route.name === 'chat' }">
+            <span class="nav-icon">💬</span>
+            <span v-if="!sidebarCollapsed" class="nav-text">对话</span>
+          </router-link>
+          <router-link to="/tts" class="nav-item" :class="{ active: $route.name === 'tts' }">
+            <span class="nav-icon">🔊</span>
+            <span v-if="!sidebarCollapsed" class="nav-text">语音合成</span>
+          </router-link>
+        </div>
 
-      <n-layout-content content-style="padding: 24px;" :native-scrollbar="false">
+        <!-- 工具模块 -->
+        <div class="nav-group">
+          <div class="nav-group-label" v-if="!sidebarCollapsed">工具</div>
+          <router-link to="/models" class="nav-item" :class="{ active: $route.name === 'models' }">
+            <span class="nav-icon">🤖</span>
+            <span v-if="!sidebarCollapsed" class="nav-text">模型</span>
+          </router-link>
+          <router-link to="/files" class="nav-item" :class="{ active: $route.name === 'files' }">
+            <span class="nav-icon">📁</span>
+            <span v-if="!sidebarCollapsed" class="nav-text">文件</span>
+          </router-link>
+          <router-link to="/statistics" class="nav-item" :class="{ active: $route.name === 'statistics' }">
+            <span class="nav-icon">📊</span>
+            <span v-if="!sidebarCollapsed" class="nav-text">用量</span>
+          </router-link>
+        </div>
+
+        <!-- 系统模块 -->
+        <div class="nav-group">
+          <div class="nav-group-label" v-if="!sidebarCollapsed">系统</div>
+          <router-link to="/settings" class="nav-item" :class="{ active: $route.name === 'settings' }">
+            <span class="nav-icon">⚙️</span>
+            <span v-if="!sidebarCollapsed" class="nav-text">设置</span>
+          </router-link>
+        </div>
+      </nav>
+
+      <!-- 底部信息 -->
+      <div class="sidebar-footer">
+        <!-- 用户 -->
+        <div class="footer-item user-info">
+          <span class="nav-icon">👤</span>
+          <span v-if="!sidebarCollapsed" class="nav-text">{{ username }}</span>
+        </div>
+
+        <!-- 连接状态 -->
+        <div class="footer-item">
+          <span class="status-dot connected"></span>
+          <span v-if="!sidebarCollapsed" class="nav-text">已连接</span>
+        </div>
+
+        <!-- 版本 -->
+        <div v-if="!sidebarCollapsed" class="footer-item version">
+          MiMo Studio v1.0.0
+        </div>
+
+        <!-- 退出 -->
+        <div class="footer-item logout" @click="logout">
+          <span class="nav-icon">🚪</span>
+          <span v-if="!sidebarCollapsed" class="nav-text">退出登录</span>
+        </div>
+      </div>
+    </aside>
+
+    <!-- 主内容区 -->
+    <main class="main-content">
+      <!-- 顶部栏 -->
+      <header class="top-bar">
+        <div class="top-bar-left">
+          <button class="btn-icon" @click="sidebarCollapsed = !sidebarCollapsed">
+            ☰
+          </button>
+          <h1 class="page-title">{{ currentTitle }}</h1>
+        </div>
+        <div class="top-bar-right">
+          <button class="btn-primary" @click="$router.push('/chat')">
+            + 新建对话
+          </button>
+        </div>
+      </header>
+
+      <!-- 页面内容 -->
+      <div class="page-content">
         <router-view />
-      </n-layout-content>
-    </n-layout>
-  </n-layout>
+      </div>
+    </main>
+  </div>
 </template>
 
 <script setup lang="ts">
 import { ref, computed } from 'vue'
 import { useRouter, useRoute } from 'vue-router'
-import {
-  NLayout, NLayoutSider, NLayoutHeader, NLayoutContent,
-  NMenu, NButton, NIcon, NSpace, NText, NAvatar
-} from 'naive-ui'
-import type { MenuOption } from 'naive-ui'
 
 const router = useRouter()
 const route = useRoute()
+const sidebarCollapsed = ref(false)
 const username = ref(localStorage.getItem('mimo-user') || 'Admin')
-
-const activeKey = computed(() => route.name as string)
-
-const menuOptions: MenuOption[] = [
-  {
-    label: '仪表板',
-    key: 'dashboard',
-    icon: () => h(NIcon, null, { default: () => h('svg', { xmlns: 'http://www.w3.org/2000/svg', viewBox: '0 0 24 24', fill: 'none', stroke: 'currentColor', 'stroke-width': '2' }, [h('rect', { x: '3', y: '3', width: '7', height: '7' }), h('rect', { x: '14', y: '3', width: '7', height: '7' }), h('rect', { x: '14', y: '14', width: '7', height: '7' }), h('rect', { x: '3', y: '14', width: '7', height: '7' })]) })
-  },
-  {
-    label: '模型管理',
-    key: 'models',
-    icon: () => h(NIcon, null, { default: () => h('svg', { xmlns: 'http://www.w3.org/2000/svg', viewBox: '0 0 24 24', fill: 'none', stroke: 'currentColor', 'stroke-width': '2' }, [h('rect', { x: '2', y: '3', width: '20', height: '14', rx: '2' }), h('line', { x1: '8', y1: '21', x2: '16', y2: '21' }), h('line', { x1: '12', y1: '17', x2: '12', y2: '21' })]) })
-  },
-  {
-    label: '对话',
-    key: 'chat',
-    icon: () => h(NIcon, null, { default: () => h('svg', { xmlns: 'http://www.w3.org/2000/svg', viewBox: '0 0 24 24', fill: 'none', stroke: 'currentColor', 'stroke-width': '2' }, [h('path', { d: 'M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z' })]) })
-  },
-  {
-    label: '语音合成',
-    key: 'tts',
-    icon: () => h(NIcon, null, { default: () => h('svg', { xmlns: 'http://www.w3.org/2000/svg', viewBox: '0 0 24 24', fill: 'none', stroke: 'currentColor', 'stroke-width': '2' }, [h('polygon', { points: '11 5 6 9 2 9 2 15 6 15 11 19 11 5' }), h('path', { d: 'M15.54 8.46a5 5 0 0 1 0 7.07' })]) })
-  },
-  {
-    label: '使用统计',
-    key: 'statistics',
-    icon: () => h(NIcon, null, { default: () => h('svg', { xmlns: 'http://www.w3.org/2000/svg', viewBox: '0 0 24 24', fill: 'none', stroke: 'currentColor', 'stroke-width': '2' }, [h('line', { x1: '18', y1: '20', x2: '18', y2: '10' }), h('line', { x1: '12', y1: '20', x2: '12', y2: '4' }), h('line', { x1: '6', y1: '20', x2: '6', y2: '14' })]) })
-  },
-  {
-    label: '文件管理',
-    key: 'files',
-    icon: () => h(NIcon, null, { default: () => h('svg', { xmlns: 'http://www.w3.org/2000/svg', viewBox: '0 0 24 24', fill: 'none', stroke: 'currentColor', 'stroke-width': '2' }, [h('path', { d: 'M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z' })]) })
-  },
-  {
-    label: '设置',
-    key: 'settings',
-    icon: () => h(NIcon, null, { default: () => h('svg', { xmlns: 'http://www.w3.org/2000/svg', viewBox: '0 0 24 24', fill: 'none', stroke: 'currentColor', 'stroke-width': '2' }, [h('circle', { cx: '12', cy: '12', r: '3' }), h('path', { d: 'M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06A1.65 1.65 0 0 0 4.68 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z' })]) })
-  }
-]
 
 const titleMap: Record<string, string> = {
   dashboard: '仪表板',
@@ -110,39 +123,261 @@ const titleMap: Record<string, string> = {
   settings: '设置'
 }
 
-const currentTitle = computed(() => titleMap[activeKey.value] || 'MiMo 工作台')
+const currentTitle = computed(() => titleMap[route.name as string] || 'MiMo Studio')
 
-const handleMenuChange = (key: string) => {
-  router.push({ name: key })
-}
-
-const toggleTheme = () => {
-  // TODO: 主题切换
+const logout = () => {
+  localStorage.removeItem('mimo-token')
+  localStorage.removeItem('mimo-user')
+  router.push('/login')
 }
 </script>
 
 <style lang="scss" scoped>
-.logo {
-  padding: 16px;
-  text-align: center;
-  border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+.app-layout {
+  display: flex;
+  height: 100vh;
+  overflow: hidden;
+  background: #0d0d14;
+  color: #e0e0e0;
+}
 
-  h2 {
-    margin: 0;
-    font-size: 18px;
-    background: linear-gradient(135deg, #18a058, #2080f0);
-    -webkit-background-clip: text;
-    -webkit-text-fill-color: transparent;
-    background-clip: text;
+// 侧边栏
+.sidebar {
+  width: 220px;
+  background: #111118;
+  border-right: 1px solid rgba(255, 255, 255, 0.06);
+  display: flex;
+  flex-direction: column;
+  transition: width 0.2s ease;
+  overflow: hidden;
+
+  &.collapsed {
+    width: 56px;
   }
 }
 
-:deep(.n-menu-item) {
-  height: 44px;
-  line-height: 44px;
+.sidebar-header {
+  padding: 16px;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.06);
 }
 
-:deep(.n-menu-item-content) {
-  padding-left: 20px !important;
+.logo {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  cursor: pointer;
+  user-select: none;
+
+  .logo-icon {
+    width: 28px;
+    height: 28px;
+    background: linear-gradient(135deg, #7c3aed, #a855f7);
+    border-radius: 6px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-weight: 700;
+    font-size: 14px;
+    color: #fff;
+    flex-shrink: 0;
+  }
+
+  .logo-text {
+    font-size: 15px;
+    font-weight: 600;
+    color: #fff;
+    white-space: nowrap;
+  }
+}
+
+// 导航
+.sidebar-nav {
+  flex: 1;
+  overflow-y: auto;
+  padding: 8px 0;
+
+  &::-webkit-scrollbar {
+    width: 4px;
+  }
+  &::-webkit-scrollbar-thumb {
+    background: rgba(255, 255, 255, 0.1);
+    border-radius: 2px;
+  }
+}
+
+.nav-group {
+  margin-bottom: 4px;
+}
+
+.nav-group-label {
+  padding: 8px 16px 4px;
+  font-size: 11px;
+  color: #666;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
+.nav-item {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 8px 16px;
+  color: #999;
+  text-decoration: none;
+  transition: all 0.15s ease;
+  cursor: pointer;
+  border-radius: 0;
+
+  &:hover {
+    background: rgba(255, 255, 255, 0.04);
+    color: #ccc;
+  }
+
+  &.active {
+    background: rgba(124, 58, 237, 0.15);
+    color: #a78bfa;
+    border-right: 2px solid #7c3aed;
+  }
+
+  .nav-icon {
+    font-size: 16px;
+    width: 20px;
+    text-align: center;
+    flex-shrink: 0;
+  }
+
+  .nav-text {
+    font-size: 13px;
+    white-space: nowrap;
+  }
+}
+
+// 底部
+.sidebar-footer {
+  border-top: 1px solid rgba(255, 255, 255, 0.06);
+  padding: 8px 0;
+}
+
+.footer-item {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 8px 16px;
+  font-size: 12px;
+  color: #666;
+
+  &.user-info {
+    color: #999;
+  }
+
+  &.version {
+    justify-content: center;
+    padding: 4px 16px;
+    font-size: 11px;
+  }
+
+  &.logout {
+    cursor: pointer;
+    color: #666;
+
+    &:hover {
+      background: rgba(255, 255, 255, 0.04);
+      color: #f87171;
+    }
+  }
+
+  .status-dot {
+    width: 6px;
+    height: 6px;
+    border-radius: 50%;
+    background: #666;
+    flex-shrink: 0;
+
+    &.connected {
+      background: #22c55e;
+    }
+  }
+}
+
+// 主内容区
+.main-content {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+}
+
+.top-bar {
+  height: 48px;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.06);
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 0 20px;
+  background: #111118;
+  flex-shrink: 0;
+
+  .top-bar-left {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+  }
+
+  .top-bar-right {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+  }
+}
+
+.page-title {
+  font-size: 14px;
+  font-weight: 500;
+  color: #e0e0e0;
+  margin: 0;
+}
+
+.btn-icon {
+  background: none;
+  border: none;
+  color: #999;
+  font-size: 16px;
+  cursor: pointer;
+  padding: 4px 8px;
+  border-radius: 4px;
+
+  &:hover {
+    background: rgba(255, 255, 255, 0.06);
+    color: #fff;
+  }
+}
+
+.btn-primary {
+  background: #7c3aed;
+  color: #fff;
+  border: none;
+  padding: 6px 14px;
+  border-radius: 6px;
+  font-size: 13px;
+  cursor: pointer;
+  transition: background 0.15s;
+
+  &:hover {
+    background: #6d28d9;
+  }
+}
+
+.page-content {
+  flex: 1;
+  overflow-y: auto;
+  padding: 20px;
+
+  &::-webkit-scrollbar {
+    width: 6px;
+  }
+  &::-webkit-scrollbar-thumb {
+    background: rgba(255, 255, 255, 0.1);
+    border-radius: 3px;
+  }
 }
 </style>
