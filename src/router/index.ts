@@ -1,5 +1,4 @@
 import { createRouter, createWebHistory } from 'vue-router'
-import { useSettingsStore } from '@/stores/settings'
 
 const router = createRouter({
   history: createWebHistory(),
@@ -35,12 +34,6 @@ const router = createRouter({
       meta: { requiresAuth: true }
     },
     {
-      path: '/asr',
-      name: 'asr',
-      component: () => import('@/views/ASR.vue'),
-      meta: { requiresAuth: true }
-    },
-    {
       path: '/settings',
       name: 'settings',
       component: () => import('@/views/Settings.vue'),
@@ -62,9 +55,9 @@ const router = createRouter({
 })
 
 router.beforeEach((to, _from, next) => {
-  const settings = useSettingsStore()
+  const token = localStorage.getItem('mimo-token')
 
-  if (to.meta.requiresAuth !== false && !settings.apiKey) {
+  if (to.meta.requiresAuth !== false && !token) {
     next('/login')
   } else {
     next()
