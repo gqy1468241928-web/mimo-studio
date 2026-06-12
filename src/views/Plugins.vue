@@ -205,7 +205,29 @@ const filteredPlugins = computed(() => {
 
 const togglePlugin = (plugin: Plugin) => {
   plugin.enabled = !plugin.enabled
+  savePlugins()
 }
+
+const savePlugins = () => {
+  const data = plugins.value.map(p => ({ id: p.id, enabled: p.enabled, config: p.config }))
+  localStorage.setItem('mimo-plugins', JSON.stringify(data))
+}
+
+const loadPlugins = () => {
+  const saved = localStorage.getItem('mimo-plugins')
+  if (saved) {
+    const data = JSON.parse(saved) as Array<{ id: string; enabled: boolean; config: Record<string, any> }>
+    data.forEach(d => {
+      const plugin = plugins.value.find(p => p.id === d.id)
+      if (plugin) {
+        plugin.enabled = d.enabled
+        plugin.config = { ...plugin.config, ...d.config }
+      }
+    })
+  }
+}
+
+loadPlugins()
 
 const showConfig = (plugin: Plugin) => {
   selectedPlugin.value = { ...plugin }
@@ -225,6 +247,7 @@ const saveConfig = () => {
       plugin.config = { ...selectedPlugin.value.config }
     }
     selectedPlugin.value = null
+    savePlugins()
   }
 }
 </script>

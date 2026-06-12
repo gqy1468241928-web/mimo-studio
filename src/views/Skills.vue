@@ -244,11 +244,30 @@ const getCategoryCount = (key: string) => {
 
 const installSkill = (skill: Skill) => {
   skill.installed = true
+  saveToStorage()
 }
 
 const uninstallSkill = (skill: Skill) => {
   skill.installed = false
+  saveToStorage()
 }
+
+const saveToStorage = () => {
+  const installed = skills.value.filter(s => s.installed).map(s => s.name)
+  localStorage.setItem('mimo-installed-skills', JSON.stringify(installed))
+}
+
+const loadFromStorage = () => {
+  const saved = localStorage.getItem('mimo-installed-skills')
+  if (saved) {
+    const installed = JSON.parse(saved) as string[]
+    skills.value.forEach(s => {
+      s.installed = installed.includes(s.name)
+    })
+  }
+}
+
+loadFromStorage()
 
 const showDetail = (skill: Skill) => {
   selectedSkill.value = skill

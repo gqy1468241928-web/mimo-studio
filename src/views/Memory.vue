@@ -204,11 +204,13 @@ const editMemory = (memory: Memory) => {
 
 const deleteMemory = (id: number) => {
   memories.value = memories.value.filter(m => m.id !== id)
+  saveMemories()
 }
 
 const clearAll = () => {
   if (confirm('确定要清除所有记忆吗？')) {
     memories.value = []
+    saveMemories()
   }
 }
 
@@ -238,7 +240,35 @@ const saveMemory = () => {
   }
 
   closeModal()
+  saveMemories()
 }
+
+const saveMemories = () => {
+  const data = memories.value.map(m => ({
+    id: m.id,
+    category: m.category,
+    content: m.content,
+    source: m.source,
+    createdAt: m.createdAt.toISOString(),
+  }))
+  localStorage.setItem('mimo-memories', JSON.stringify(data))
+}
+
+const loadMemories = () => {
+  const saved = localStorage.getItem('mimo-memories')
+  if (saved) {
+    const data = JSON.parse(saved) as Array<{ id: number; category: string; content: string; source?: string; createdAt: string }>
+    memories.value = data.map(d => ({
+      id: d.id,
+      category: d.category,
+      content: d.content,
+      source: d.source,
+      createdAt: new Date(d.createdAt),
+    }))
+  }
+}
+
+loadMemories()
 
 const closeModal = () => {
   showAddModal.value = false
