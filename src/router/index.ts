@@ -20,11 +20,6 @@ const router = createRouter({
           component: () => import('@/views/Dashboard.vue')
         },
         {
-          path: 'models',
-          name: 'models',
-          component: () => import('@/views/Models.vue')
-        },
-        {
           path: 'chat',
           name: 'chat',
           component: () => import('@/views/Chat.vue')
@@ -35,9 +30,14 @@ const router = createRouter({
           component: () => import('@/views/TTS.vue')
         },
         {
-          path: 'settings',
-          name: 'settings',
-          component: () => import('@/views/Settings.vue')
+          path: 'models',
+          name: 'models',
+          component: () => import('@/views/Models.vue')
+        },
+        {
+          path: 'files',
+          name: 'files',
+          component: () => import('@/views/Files.vue')
         },
         {
           path: 'statistics',
@@ -45,9 +45,24 @@ const router = createRouter({
           component: () => import('@/views/Statistics.vue')
         },
         {
-          path: 'files',
-          name: 'files',
-          component: () => import('@/views/Files.vue')
+          path: 'skills',
+          name: 'skills',
+          component: () => import('@/views/Skills.vue')
+        },
+        {
+          path: 'plugins',
+          name: 'plugins',
+          component: () => import('@/views/Plugins.vue')
+        },
+        {
+          path: 'memory',
+          name: 'memory',
+          component: () => import('@/views/Memory.vue')
+        },
+        {
+          path: 'settings',
+          name: 'settings',
+          component: () => import('@/views/Settings.vue')
         }
       ]
     }

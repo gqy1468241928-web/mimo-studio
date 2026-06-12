@@ -28,9 +28,6 @@
         <div class="nav-group">
           <div class="nav-group-label">
             <span>对话</span>
-            <svg class="nav-group-arrow" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-              <polyline points="6 9 12 15 18 9"/>
-            </svg>
           </div>
           <div class="nav-group-items">
             <router-link to="/chat" class="nav-item" :class="{ active: $route.name === 'chat' }">
@@ -53,9 +50,6 @@
         <div class="nav-group">
           <div class="nav-group-label">
             <span>工具</span>
-            <svg class="nav-group-arrow" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-              <polyline points="6 9 12 15 18 9"/>
-            </svg>
           </div>
           <div class="nav-group-items">
             <router-link to="/models" class="nav-item" :class="{ active: $route.name === 'models' }">
@@ -83,13 +77,40 @@
           </div>
         </div>
 
+        <!-- 扩展模块 -->
+        <div class="nav-group">
+          <div class="nav-group-label">
+            <span>扩展</span>
+          </div>
+          <div class="nav-group-items">
+            <router-link to="/skills" class="nav-item" :class="{ active: $route.name === 'skills' }">
+              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <path d="M14.7 6.3a1 1 0 0 0 0 1.4l1.6 1.6a1 1 0 0 0 1.4 0l3.77-3.77a6 6 0 0 1-7.94 7.94l-6.91 6.91a2.12 2.12 0 0 1-3-3l6.91-6.91a6 6 0 0 1 7.94-7.94l-3.76 3.76z"/>
+              </svg>
+              <span>技能</span>
+            </router-link>
+            <router-link to="/plugins" class="nav-item" :class="{ active: $route.name === 'plugins' }">
+              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <rect x="2" y="7" width="20" height="14" rx="2" ry="2"/>
+                <path d="M16 21V5a2 2 0 0 0-2-2h-4a2 2 0 0 0-2 2v16"/>
+              </svg>
+              <span>插件</span>
+            </router-link>
+            <router-link to="/memory" class="nav-item" :class="{ active: $route.name === 'memory' }">
+              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2z"/>
+                <path d="M12 16v-4"/>
+                <path d="M12 8h.01"/>
+              </svg>
+              <span>记忆</span>
+            </router-link>
+          </div>
+        </div>
+
         <!-- 系统模块 -->
         <div class="nav-group nav-group-bottom">
           <div class="nav-group-label">
             <span>系统</span>
-            <svg class="nav-group-arrow" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-              <polyline points="6 9 12 15 18 9"/>
-            </svg>
           </div>
           <div class="nav-group-items">
             <router-link to="/settings" class="nav-item" :class="{ active: $route.name === 'settings' }">
@@ -105,7 +126,6 @@
 
       <!-- 底部信息 -->
       <div class="sidebar-footer">
-        <!-- 用户 -->
         <div class="logout-item" @click="logout">
           <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
             <path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/>
@@ -115,7 +135,6 @@
           <span class="logout-username">{{ username }}</span>
         </div>
 
-        <!-- 连接状态 -->
         <div class="status-row">
           <div class="status-indicator connected">
             <div class="status-dot"></div>
@@ -123,7 +142,6 @@
           </div>
         </div>
 
-        <!-- 版本信息 -->
         <div class="version-info">
           <span class="version-text">MiMo Studio v1.0.0</span>
         </div>
@@ -163,7 +181,6 @@ const logout = () => {
   overflow: hidden;
 }
 
-// 侧边栏
 .sidebar {
   width: 240px;
   height: 100vh;
@@ -319,7 +336,6 @@ const logout = () => {
   right: 16px;
 }
 
-// 导航
 .sidebar-nav {
   scrollbar-width: none;
   flex-direction: column;
@@ -377,15 +393,6 @@ const logout = () => {
   padding-top: 0;
 }
 
-.nav-group-arrow {
-  flex-shrink: 0;
-  transition: transform .15s;
-
-  &.collapsed {
-    transform: rotate(-90deg);
-  }
-}
-
 .nav-item {
   appearance: none;
   color: var(--text-secondary);
@@ -422,7 +429,6 @@ const logout = () => {
   }
 }
 
-// 底部
 .sidebar-footer {
   border-top: 1px solid var(--border-color);
   padding-top: 8px;
@@ -505,7 +511,6 @@ const logout = () => {
   overflow: hidden;
 }
 
-// 主内容区
 .app-main {
   background-color: var(--bg-primary);
   flex: 1;
