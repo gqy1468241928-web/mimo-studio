@@ -1,72 +1,50 @@
 <template>
-  <div class="login-page">
-    <div class="login-container glass">
+  <div class="login-page dark">
+    <div class="login-container">
       <div class="login-header">
         <div class="login-logo">
           <div class="logo-icon">
-            <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
               <path d="M12 2L2 7l10 5 10-5-10-5z"/>
               <path d="M2 17l10 5 10-5"/>
               <path d="M2 12l10 5 10-5"/>
             </svg>
           </div>
-          <h1 class="gradient-text">MiMo Studio</h1>
+          <h1>MiMo Studio</h1>
         </div>
-        <p class="login-subtitle">输入用户名和密码以继续</p>
+        <p class="login-subtitle">输入用户名和密码以继续。</p>
+        <p class="login-hint">默认登录名: admin, 默认密码: admin123</p>
       </div>
 
       <form class="login-form" @submit.prevent="login">
         <div class="form-group">
-          <label for="username">用户名</label>
-          <div class="input-wrapper glass">
-            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-              <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/>
-              <circle cx="12" cy="7" r="4"/>
-            </svg>
-            <input
-              id="username"
-              v-model="username"
-              type="text"
-              placeholder="请输入用户名"
-              autocomplete="username"
-            />
-          </div>
+          <input
+            v-model="username"
+            type="text"
+            placeholder="用户名"
+            autocomplete="username"
+            class="login-input"
+          />
         </div>
 
         <div class="form-group">
-          <label for="password">密码</label>
-          <div class="input-wrapper glass">
-            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-              <rect x="3" y="11" width="18" height="11" rx="2" ry="2"/>
-              <path d="M7 11V7a5 5 0 0 1 10 0v4"/>
-            </svg>
-            <input
-              id="password"
-              v-model="password"
-              type="password"
-              placeholder="请输入密码"
-              autocomplete="current-password"
-            />
-          </div>
+          <input
+            v-model="password"
+            type="password"
+            placeholder="密码"
+            autocomplete="current-password"
+            class="login-input"
+          />
         </div>
 
         <div v-if="error" class="error-message">
-          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-            <circle cx="12" cy="12" r="10"/>
-            <line x1="15" y1="9" x2="9" y2="15"/>
-            <line x1="9" y1="9" x2="15" y2="15"/>
-          </svg>
           {{ error }}
         </div>
 
-        <button type="submit" class="btn-login btn-gradient" :disabled="loading">
-          <span v-if="loading" class="loading-spinner"></span>
+        <button type="submit" class="login-btn" :disabled="loading">
+          <span v-if="loading">登录中...</span>
           <span v-else>登录</span>
         </button>
-
-        <div class="login-hint">
-          默认账号: admin / admin123
-        </div>
       </form>
     </div>
   </div>
@@ -91,7 +69,6 @@ const login = async () => {
   loading.value = true
   error.value = ''
 
-  // 模拟登录
   setTimeout(() => {
     if (username.value === 'admin' && password.value === 'admin123') {
       localStorage.setItem('mimo-token', 'authenticated')
@@ -106,41 +83,43 @@ const login = async () => {
 </script>
 
 <style lang="scss" scoped>
-@import '@/styles/design-system.scss';
+@import '@/styles/hermes-vars.scss';
 
 .login-page {
   min-height: 100vh;
   display: flex;
   align-items: center;
   justify-content: center;
-  background: linear-gradient(135deg, var(--bg-primary), var(--bg-secondary));
-  padding: var(--space-5);
+  background-color: var(--bg-primary);
+  padding: 20px;
 }
 
 .login-container {
   width: 100%;
-  max-width: 400px;
-  padding: var(--space-8);
-  border-radius: var(--radius-xl);
+  max-width: 360px;
+  background: var(--bg-card);
+  border: 1px solid var(--border-color);
+  border-radius: 12px;
+  padding: 32px;
 }
 
 .login-header {
   text-align: center;
-  margin-bottom: var(--space-8);
+  margin-bottom: 24px;
 }
 
 .login-logo {
   display: flex;
   flex-direction: column;
   align-items: center;
-  gap: var(--space-4);
-  margin-bottom: var(--space-4);
+  gap: 12px;
+  margin-bottom: 16px;
 
   .logo-icon {
-    width: 56px;
-    height: 56px;
-    background: var(--color-primary-gradient);
-    border-radius: var(--radius-lg);
+    width: 48px;
+    height: 48px;
+    background: linear-gradient(135deg, #4a90d9, #6ba3d6);
+    border-radius: 10px;
     display: flex;
     align-items: center;
     justify-content: center;
@@ -148,117 +127,83 @@ const login = async () => {
   }
 
   h1 {
-    font-size: var(--text-2xl);
+    font-size: 20px;
     font-weight: 700;
+    color: var(--text-primary);
     margin: 0;
   }
 }
 
 .login-subtitle {
   color: var(--text-secondary);
-  font-size: var(--text-sm);
+  font-size: 14px;
+  margin: 0 0 8px 0;
+}
+
+.login-hint {
+  color: var(--text-muted);
+  font-size: 12px;
   margin: 0;
 }
 
 .login-form {
   display: flex;
   flex-direction: column;
-  gap: var(--space-5);
+  gap: 12px;
 }
 
 .form-group {
   display: flex;
   flex-direction: column;
-  gap: var(--space-2);
-
-  label {
-    font-size: var(--text-sm);
-    color: var(--text-secondary);
-    font-weight: 500;
-  }
 }
 
-.input-wrapper {
-  display: flex;
-  align-items: center;
-  gap: var(--space-3);
-  padding: var(--space-3) var(--space-4);
-  border-radius: var(--radius-md);
-  transition: all var(--transition-fast);
+.login-input {
+  width: 100%;
+  padding: 10px 12px;
+  background: var(--bg-input);
+  border: 1px solid var(--border-color);
+  border-radius: 6px;
+  color: var(--text-primary);
+  font-size: 14px;
+  outline: none;
+  transition: border-color .15s;
 
-  &:focus-within {
-    border-color: var(--color-primary);
-    box-shadow: 0 0 0 3px rgba(6, 182, 212, 0.1);
+  &:focus {
+    border-color: var(--accent-muted);
   }
 
-  svg {
-    color: var(--text-tertiary);
-    flex-shrink: 0;
-  }
-
-  input {
-    flex: 1;
-    background: none;
-    border: none;
-    outline: none;
-    color: var(--text-primary);
-    font-size: var(--text-base);
-    font-family: var(--font-sans);
-
-    &::placeholder {
-      color: var(--text-disabled);
-    }
+  &::placeholder {
+    color: var(--text-muted);
   }
 }
 
 .error-message {
-  display: flex;
-  align-items: center;
-  gap: var(--space-2);
-  color: var(--color-error);
-  font-size: var(--text-sm);
-  padding: var(--space-3);
-  background: rgba(239, 68, 68, 0.1);
-  border-radius: var(--radius-md);
+  color: var(--error);
+  font-size: 13px;
+  padding: 8px 12px;
+  background: rgba(var(--error-rgb), .1);
+  border-radius: 6px;
 }
 
-.btn-login {
+.login-btn {
   width: 100%;
-  padding: var(--space-3) var(--space-5);
-  font-size: var(--text-base);
-  font-weight: 600;
-  border-radius: var(--radius-md);
+  padding: 10px 16px;
+  background: var(--accent-primary);
+  color: var(--text-on-accent);
+  border: none;
+  border-radius: 6px;
+  font-size: 14px;
+  font-weight: 500;
   cursor: pointer;
-  transition: all var(--transition-fast);
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  min-height: 44px;
+  transition: all .15s;
+
+  &:hover {
+    background: var(--accent-hover);
+  }
 
   &:disabled {
-    opacity: 0.7;
+    opacity: .6;
     cursor: not-allowed;
   }
-}
-
-.loading-spinner {
-  width: 20px;
-  height: 20px;
-  border: 2px solid rgba(255, 255, 255, 0.3);
-  border-top-color: #fff;
-  border-radius: 50%;
-  animation: spin 0.8s linear infinite;
-}
-
-@keyframes spin {
-  to {
-    transform: rotate(360deg);
-  }
-}
-
-.login-hint {
-  text-align: center;
-  font-size: var(--text-xs);
-  color: var(--text-tertiary);
 }
 </style>

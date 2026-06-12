@@ -1,58 +1,58 @@
-@import './design-system';
+@import './hermes-vars';
 
 * {
+  box-sizing: border-box;
   margin: 0;
   padding: 0;
-  box-sizing: border-box;
+}
+
+button, input, select, textarea {
+  font-family: inherit;
 }
 
 html, body, #app {
-  height: 100%;
   width: 100%;
-  font-family: var(--font-sans);
-  background: var(--bg-primary);
+  height: 100%;
+  overflow: hidden;
+}
+
+body {
+  font-family: "Inter", system-ui, -apple-system, sans-serif;
+  background-color: var(--bg-primary);
   color: var(--text-primary);
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
+  font-size: 14px;
+  line-height: 1.6;
 }
 
 a {
-  color: var(--color-primary);
+  color: var(--accent-primary);
   text-decoration: none;
-  
-  &:hover {
-    text-decoration: underline;
-  }
 }
 
-button {
-  font-family: var(--font-sans);
+a:hover {
+  color: var(--accent-hover);
 }
 
-input, textarea, select {
-  font-family: var(--font-sans);
+::-webkit-scrollbar {
+  width: 6px;
+  height: 6px;
 }
 
-// 过渡动画
-.fade-enter-active,
-.fade-leave-active {
-  transition: opacity var(--transition-normal);
+::-webkit-scrollbar-track {
+  background: transparent;
 }
 
-.fade-enter-from,
-.fade-leave-to {
-  opacity: 0;
+::-webkit-scrollbar-thumb {
+  background: var(--border-color);
+  border-radius: 3px;
 }
 
-.slide-enter-active,
-.slide-leave-active {
-  transition: transform var(--transition-normal);
+::-webkit-scrollbar-thumb:hover {
+  background: var(--text-muted);
 }
 
-.slide-enter-from {
-  transform: translateX(-100%);
-}
-
-.slide-leave-to {
-  transform: translateX(100%);
+::selection {
+  background: rgba(var(--accent-primary-rgb), .3);
 }

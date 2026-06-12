@@ -1,280 +1,192 @@
 <template>
-  <div class="chat-container">
-    <n-layout has-sider style="height: calc(100vh - 120px)">
-      <!-- 会话列表 -->
-      <n-layout-sider bordered :width="260" :native-scrollbar="false">
-        <div style="padding: 12px">
-          <n-button type="primary" block @click="createSession">
-            <template #icon>
-              <n-icon><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg></n-icon>
-            </template>
-            新建对话
-          </n-button>
-        </div>
+  <div class="chat-view">
+    <!-- 会话列表 -->
+    <div class="session-sidebar">
+      <div class="session-header">
+        <button class="new-chat-btn" @click="createSession">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <line x1="12" y1="5" x2="12" y2="19"/>
+            <line x1="5" y1="12" x2="19" y2="12"/>
+          </svg>
+          新建对话
+        </button>
+      </div>
 
-        <div style="padding: 0 12px 12px">
-          <n-input v-model:value="sessionSearch" placeholder="搜索会话..." clearable size="small" />
-        </div>
-
-        <n-scrollbar style="height: calc(100vh - 260px)">
-          <div
-            v-for="session in filteredSessions"
-            :key="session.id"
-            class="session-item"
-            :class="{ active: session.id === activeSessionId }"
-            @click="selectSession(session.id)"
-          >
-            <div class="session-content">
-              <div class="session-title">{{ session.title }}</div>
-              <div class="session-meta">
-                <n-text depth="3" style="font-size: 11px">{{ session.messages.length }} 条消息</n-text>
-                <n-text depth="3" style="font-size: 11px">{{ formatTime(session.updatedAt) }}</n-text>
-              </div>
-            </div>
-            <div class="session-actions">
-              <n-button text size="small" @click.stop="renameSession(session)">
-                <n-icon size="14"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/></svg></n-icon>
-              </n-button>
-              <n-button text size="small" type="error" @click.stop="deleteSession(session.id)">
-                <n-icon size="14"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/></svg></n-icon>
-              </n-button>
-            </div>
+      <div class="session-list">
+        <div
+          v-for="session in sessions"
+          :key="session.id"
+          class="session-item"
+          :class="{ active: session.id === activeSessionId }"
+          @click="selectSession(session.id)"
+        >
+          <div class="session-content">
+            <span class="session-title">{{ session.title }}</span>
+            <span class="session-meta">{{ session.messages.length }} 条消息</span>
           </div>
-        </n-scrollbar>
-      </n-layout-sider>
-
-      <!-- 对话区域 -->
-      <n-layout-content content-style="display: flex; flex-direction: column; height: 100%;">
-        <!-- 顶部工具栏 -->
-        <div class="toolbar">
-          <n-space align="center">
-            <n-select
-              v-model:value="selectedModelId"
-              :options="modelOptions"
-              style="width: 180px"
-              size="small"
-              placeholder="选择模型"
-            />
-            <n-tag v-if="currentModel" size="small" :type="getTagType(currentModel.type)">
-              {{ currentModel.name }}
-            </n-tag>
-            <n-switch v-model:value="useStream" size="small">
-              <template #checked>流式</template>
-              <template #unchecked>标准</template>
-            </n-switch>
-          </n-space>
-          <n-space>
-            <n-button size="small" @click="stopGeneration" v-if="isGenerating">
-              停止生成
-            </n-button>
-            <n-button size="small" @click="exportChat">
-              导出
-            </n-button>
-            <n-button size="small" @click="clearMessages" :disabled="messages.length === 0">
-              清空
-            </n-button>
-          </n-space>
+          <button class="session-delete" @click.stop="deleteSession(session.id)">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <polyline points="3 6 5 6 21 6"/>
+              <path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/>
+            </svg>
+          </button>
         </div>
+      </div>
+    </div>
 
-        <!-- 消息列表 -->
-        <div class="messages" ref="messagesContainer">
-          <div v-if="messages.length === 0" class="empty-state">
-            <n-icon size="48" depth="3"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg></n-icon>
-            <n-text depth="3" style="margin-top: 12px">开始新的对话</n-text>
-            <n-text depth="3" style="font-size: 12px">选择一个模型，输入消息开始</n-text>
-          </div>
+    <!-- 对话区域 -->
+    <div class="chat-main">
+      <!-- 模型选择 -->
+      <div class="model-selector">
+        <span class="model-label">模型</span>
+        <button class="model-trigger" @click="showModelSelect = !showModelSelect">
+          <span class="model-name">{{ currentModelName }}</span>
+          <svg class="model-arrow" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <polyline points="6 9 12 15 18 9"/>
+          </svg>
+        </button>
 
-          <div v-for="msg in messages" :key="msg.id" :class="['message', msg.role]">
-            <div class="message-avatar">
-              <n-avatar v-if="msg.role === 'user'" :size="32" round>U</n-avatar>
-              <n-avatar v-else :size="32" round :style="{ backgroundColor: '#18a058' }">M</n-avatar>
-            </div>
-            <div class="message-body">
-              <div class="message-header">
-                <n-text strong>{{ msg.role === 'user' ? '你' : 'MiMo' }}</n-text>
-                <n-text depth="3" style="font-size: 11px">{{ formatTime(msg.timestamp) }}</n-text>
-              </div>
-              <div class="message-content" :class="{ 'streaming': msg.isStreaming }">
-                {{ msg.content }}<span v-if="msg.isStreaming" class="cursor">|</span>
-              </div>
-              <!-- 文件附件 -->
-              <div v-if="msg.files && msg.files.length > 0" class="message-files">
-                <div v-for="file in msg.files" :key="file.name" class="file-item">
-                  <n-icon size="16"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/></svg></n-icon>
-                  <span>{{ file.name }}</span>
-                  <n-text depth="3" style="font-size: 11px">({{ formatFileSize(file.size) }})</n-text>
-                </div>
-              </div>
-              <div class="message-actions">
-                <n-button text size="tiny" @click="copyMessage(msg.content)">复制</n-button>
-                <n-text v-if="msg.tokens" depth="3" style="font-size: 11px; margin-left: 8px">
-                  {{ msg.tokens }} tokens
-                </n-text>
-              </div>
-            </div>
-          </div>
-        </div>
-
-        <!-- 输入区域 -->
-        <div class="input-area">
-          <!-- 文件预览 -->
-          <div v-if="uploadedFiles.length > 0" class="uploaded-files">
-            <div v-for="(file, index) in uploadedFiles" :key="index" class="file-preview">
-              <n-icon size="16"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/></svg></n-icon>
-              <span>{{ file.name }}</span>
-              <n-button text size="tiny" @click="removeFile(index)">
-                <n-icon size="14"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg></n-icon>
-              </n-button>
-            </div>
-          </div>
-
-          <div class="input-toolbar">
-            <n-upload
-              :show-file-list="false"
-              :custom-request="handleFileUpload"
-              accept=".txt,.md,.json,.csv,.py,.js,.ts,.html,.css"
-              multiple
+        <div v-if="showModelSelect" class="model-dropdown">
+          <div class="model-list">
+            <div
+              v-for="model in chatModels"
+              :key="model.id"
+              class="model-item"
+              :class="{ active: model.id === selectedModelId }"
+              @click="selectModel(model.id)"
             >
-              <n-button text size="small">
-                <n-icon><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21.44 11.05l-9.19 9.19a6 6 0 0 1-8.49-8.49l9.19-9.19a4 4 0 0 1 5.66 5.66l-9.2 9.19a2 2 0 0 1-2.83-2.83l8.49-8.48"/></svg></n-icon>
-              </n-button>
-            </n-upload>
-            <n-text depth="3" style="font-size: 11px">
-              {{ useStream ? '流式模式' : '标准模式' }} · Ctrl+Enter 发送
-            </n-text>
+              <span class="model-item-name">{{ model.name }}</span>
+              <svg v-if="model.id === selectedModelId" class="model-check" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <polyline points="20 6 9 17 4 12"/>
+              </svg>
+            </div>
           </div>
-          <n-input
-            v-model:value="inputText"
-            type="textarea"
-            placeholder="输入消息..."
-            :rows="3"
-            :disabled="isGenerating"
-            @keydown.enter.ctrl="sendMessage"
-            :autosize="{ minRows: 2, maxRows: 6 }"
-          />
-          <n-button
-            type="primary"
-            block
-            @click="sendMessage"
-            :loading="isGenerating"
-            :disabled="!inputText.trim() && uploadedFiles.length === 0"
-            style="margin-top: 8px"
-          >
-            {{ isGenerating ? '生成中...' : '发送' }}
-          </n-button>
         </div>
-      </n-layout-content>
-    </n-layout>
+      </div>
 
-    <!-- 重命名弹窗 -->
-    <n-modal v-model:show="showRenameModal" preset="dialog" title="重命名会话">
-      <n-input v-model:value="newSessionTitle" placeholder="输入新名称" @keydown.enter="confirmRename" />
-      <template #action>
-        <n-button @click="showRenameModal = false">取消</n-button>
-        <n-button type="primary" @click="confirmRename">确定</n-button>
-      </template>
-    </n-modal>
+      <!-- 消息列表 -->
+      <div class="messages-container" ref="messagesContainer">
+        <div v-if="messages.length === 0" class="empty-state">
+          <svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5">
+            <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/>
+          </svg>
+          <p>开始新的对话</p>
+          <span>选择一个模型，输入消息开始</span>
+        </div>
+
+        <div v-for="msg in messages" :key="msg.id" class="message" :class="msg.role">
+          <div class="message-avatar">
+            <svg v-if="msg.role === 'user'" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/>
+              <circle cx="12" cy="7" r="4"/>
+            </svg>
+            <svg v-else width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <path d="M12 2L2 7l10 5 10-5-10-5z"/>
+              <path d="M2 17l10 5 10-5"/>
+              <path d="M2 12l10 5 10-5"/>
+            </svg>
+          </div>
+          <div class="message-body">
+            <div class="message-header">
+              <span class="message-sender">{{ msg.role === 'user' ? '你' : 'MiMo' }}</span>
+            </div>
+            <div class="message-content">{{ msg.content }}</div>
+            <div class="message-actions">
+              <button class="action-btn" @click="copyMessage(msg.content)">复制</button>
+            </div>
+          </div>
+        </div>
+
+        <div v-if="loading" class="message assistant">
+          <div class="message-avatar">
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <path d="M12 2L2 7l10 5 10-5-10-5z"/>
+              <path d="M2 17l10 5 10-5"/>
+              <path d="M2 12l10 5 10-5"/>
+            </svg>
+          </div>
+          <div class="message-body">
+            <div class="message-content loading-message">
+              <span class="loading-dot"></span>
+              <span class="loading-dot"></span>
+              <span class="loading-dot"></span>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- 输入区域 -->
+      <div class="input-area">
+        <div class="input-wrapper">
+          <textarea
+            v-model="inputText"
+            placeholder="输入消息..."
+            rows="1"
+            @keydown.enter.exact.prevent="sendMessage"
+            @keydown.enter.shift.exact="newline"
+            ref="inputRef"
+          ></textarea>
+          <button class="send-btn" @click="sendMessage" :disabled="!inputText.trim() || loading">
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <line x1="22" y1="2" x2="11" y2="13"/>
+              <polygon points="22 2 15 22 11 13 2 9 22 2"/>
+            </svg>
+          </button>
+        </div>
+        <div class="input-hint">
+          Enter 发送，Shift+Enter 换行
+        </div>
+      </div>
+    </div>
   </div>
 </template>
 
 <script setup lang="ts">
-import { ref, computed, nextTick, onMounted, watch } from 'vue'
-import { useRoute } from 'vue-router'
-import {
-  NLayout, NLayoutSider, NLayoutContent, NButton, NInput, NSpace, NSelect,
-  NTag, NText, NIcon, NAvatar, NScrollbar, NModal, NSwitch, NUpload
-} from 'naive-ui'
+import { ref, computed, nextTick } from 'vue'
 import { useModelStore } from '@/stores/model'
-import { useStatisticsStore } from '@/stores/statistics'
-import { createChatCompletion, createChatCompletionStream, type ChatMessage } from '@/api/chat'
-
-interface FileAttachment {
-  name: string
-  size: number
-  type: string
-  content: string
-}
+import { createChatCompletion, type ChatMessage } from '@/api/chat'
 
 interface Message {
   id: number
   role: 'user' | 'assistant'
   content: string
   timestamp: Date
-  isStreaming?: boolean
-  tokens?: number
-  files?: FileAttachment[]
 }
 
 interface Session {
   id: number
   title: string
   messages: Message[]
-  createdAt: Date
-  updatedAt: Date
 }
 
 const modelStore = useModelStore()
-const statisticsStore = useStatisticsStore()
-const route = useRoute()
 
 const sessions = ref<Session[]>([
-  { id: 1, title: '新对话', messages: [], createdAt: new Date(), updatedAt: new Date() },
+  { id: 1, title: '新对话', messages: [] },
 ])
 const activeSessionId = ref(1)
 const messages = ref<Message[]>([])
 const inputText = ref('')
-const isGenerating = ref(false)
+const loading = ref(false)
 const messagesContainer = ref<HTMLElement | null>(null)
-const sessionSearch = ref('')
-const showRenameModal = ref(false)
-const newSessionTitle = ref('')
-const renamingSession = ref<Session | null>(null)
-const useStream = ref(true)
-const uploadedFiles = ref<FileAttachment[]>([])
+const inputRef = ref<HTMLTextAreaElement | null>(null)
+const showModelSelect = ref(false)
+const selectedModelId = ref('mimo-v2.5')
 let msgId = 0
 
-const selectedModelId = ref('mimo-v2.5')
-
-const modelOptions = computed(() =>
-  modelStore.models
-    .filter(m => m.type === 'chat')
-    .map(m => ({ label: m.name, value: m.id }))
-)
-
-const currentModel = computed(() =>
-  modelStore.models.find(m => m.id === selectedModelId.value)
-)
-
-const filteredSessions = computed(() => {
-  if (!sessionSearch.value) return sessions.value
-  const query = sessionSearch.value.toLowerCase()
-  return sessions.value.filter(s => s.title.toLowerCase().includes(query))
+const chatModels = computed(() => modelStore.models.filter(m => m.type === 'chat'))
+const currentModelName = computed(() => {
+  const model = chatModels.value.find(m => m.id === selectedModelId.value)
+  return model?.name || '选择模型'
 })
-
-const getTagType = (type: string) => {
-  switch (type) {
-    case 'chat': return 'success'
-    case 'tts': return 'info'
-    case 'asr': return 'warning'
-    default: return 'default'
-  }
-}
 
 const createSession = () => {
   const id = Date.now()
-  const newSession: Session = {
-    id,
-    title: '新对话',
-    messages: [],
-    createdAt: new Date(),
-    updatedAt: new Date(),
-  }
-  sessions.value.unshift(newSession)
+  sessions.value.unshift({ id, title: '新对话', messages: [] })
   selectSession(id)
 }
 
 const selectSession = (id: number) => {
-  if (isGenerating.value) return
   const currentSession = sessions.value.find(s => s.id === activeSessionId.value)
   if (currentSession) {
     currentSession.messages = [...messages.value]
@@ -285,28 +197,17 @@ const selectSession = (id: number) => {
   scrollToBottom()
 }
 
-const renameSession = (session: Session) => {
-  renamingSession.value = session
-  newSessionTitle.value = session.title
-  showRenameModal.value = true
-}
-
-const confirmRename = () => {
-  if (renamingSession.value && newSessionTitle.value.trim()) {
-    renamingSession.value.title = newSessionTitle.value.trim()
-    showRenameModal.value = false
-  }
-}
-
 const deleteSession = (id: number) => {
-  if (sessions.value.length <= 1 || isGenerating.value) return
+  if (sessions.value.length <= 1) return
   sessions.value = sessions.value.filter(s => s.id !== id)
-  if (activeSessionId.value === id) {
-    const firstSession = sessions.value[0]
-    if (firstSession) {
-      selectSession(firstSession.id)
-    }
+  if (activeSessionId.value === id && sessions.value.length > 0) {
+    selectSession(sessions.value[0]!.id)
   }
+}
+
+const selectModel = (id: string) => {
+  selectedModelId.value = id
+  showModelSelect.value = false
 }
 
 const scrollToBottom = () => {
@@ -317,131 +218,48 @@ const scrollToBottom = () => {
   })
 }
 
-const handleFileUpload = ({ file }: any) => {
-  const reader = new FileReader()
-  reader.onload = (e) => {
-    uploadedFiles.value.push({
-      name: file.name,
-      size: file.size,
-      type: file.type || 'text/plain',
-      content: e.target?.result as string,
-    })
-  }
-  reader.readAsText(file.file)
-}
-
-const removeFile = (index: number) => {
-  uploadedFiles.value.splice(index, 1)
+const newline = () => {
+  inputText.value += '\n'
 }
 
 const sendMessage = async () => {
-  if ((!inputText.value.trim() && uploadedFiles.value.length === 0) || isGenerating.value) return
-
-  // 构建消息内容
-  let messageContent = inputText.value
-  const files = [...uploadedFiles.value]
-
-  if (files.length > 0) {
-    const fileContents = files.map(f => `[文件: ${f.name}]\n${f.content}`).join('\n\n')
-    messageContent = messageContent
-      ? `${messageContent}\n\n${fileContents}`
-      : fileContents
-  }
+  if (!inputText.value.trim() || loading.value) return
 
   const userMessage: Message = {
     id: ++msgId,
     role: 'user',
-    content: messageContent,
+    content: inputText.value,
     timestamp: new Date(),
-    files: files.length > 0 ? files : undefined,
   }
 
   messages.value.push(userMessage)
+  const userMsg = inputText.value
   inputText.value = ''
-  uploadedFiles.value = []
-
-  const session = sessions.value.find(s => s.id === activeSessionId.value)
-  if (session) {
-    if (session.title === '新对话') {
-      const titleText = inputText.value || files[0]?.name || '新对话'
-      session.title = titleText.substring(0, 20) + (titleText.length > 20 ? '...' : '')
-    }
-    session.updatedAt = new Date()
-  }
-
-  if (useStream.value) {
-    await sendStreamMessage()
-  } else {
-    await sendNormalMessage()
-  }
-}
-
-const sendStreamMessage = async () => {
-  isGenerating.value = true
-
-  const assistantMessage: Message = {
-    id: ++msgId,
-    role: 'assistant',
-    content: '',
-    timestamp: new Date(),
-    isStreaming: true,
-  }
-  messages.value.push(assistantMessage)
-
-  const chatMessages: ChatMessage[] = messages.value
-    .filter(m => !m.isStreaming)
-    .map(m => ({ role: m.role, content: m.content }))
-
+  loading.value = true
   scrollToBottom()
 
-  await createChatCompletionStream(
-    chatMessages,
-    selectedModelId.value,
-    (chunk) => {
-      assistantMessage.content += chunk
-      scrollToBottom()
-    },
-    () => {
-      assistantMessage.isStreaming = false
-      isGenerating.value = false
-      const tokenEstimate = Math.ceil(assistantMessage.content.length / 2)
-      statisticsStore.addRecord({ type: 'chat', model: selectedModelId.value, tokens: tokenEstimate })
-      const session = sessions.value.find(s => s.id === activeSessionId.value)
-      if (session) session.updatedAt = new Date()
-    },
-    (error) => {
-      assistantMessage.content += `\n\n[错误: ${error.message}]`
-      assistantMessage.isStreaming = false
-      isGenerating.value = false
-    }
-  )
-}
-
-const sendNormalMessage = async () => {
-  isGenerating.value = true
-
-  const chatMessages: ChatMessage[] = messages.value.map(m => ({
-    role: m.role,
-    content: m.content,
-  }))
+  const session = sessions.value.find(s => s.id === activeSessionId.value)
+  if (session && session.title === '新对话') {
+    session.title = userMsg.substring(0, 20) + (userMsg.length > 20 ? '...' : '')
+  }
 
   try {
+    const chatMessages: ChatMessage[] = messages.value.map(m => ({
+      role: m.role,
+      content: m.content,
+    }))
+
     const response = await createChatCompletion(chatMessages, selectedModelId.value)
+    const data = response as any
 
     const assistantMessage: Message = {
       id: ++msgId,
       role: 'assistant',
-      content: response.data.choices[0]?.message?.content || '抱歉，我没有收到回复。',
+      content: data.choices?.[0]?.message?.content || '抱歉，我没有收到回复。',
       timestamp: new Date(),
     }
 
     messages.value.push(assistantMessage)
-
-    const tokenEstimate = Math.ceil(assistantMessage.content.length / 2)
-    statisticsStore.addRecord({ type: 'chat', model: selectedModelId.value, tokens: tokenEstimate })
-
-    const session = sessions.value.find(s => s.id === activeSessionId.value)
-    if (session) session.updatedAt = new Date()
   } catch (error: any) {
     const errorMessage: Message = {
       id: ++msgId,
@@ -451,237 +269,453 @@ const sendNormalMessage = async () => {
     }
     messages.value.push(errorMessage)
   } finally {
-    isGenerating.value = false
+    loading.value = false
     scrollToBottom()
   }
-}
-
-const stopGeneration = () => {
-  isGenerating.value = false
-  const lastMsg = messages.value[messages.value.length - 1]
-  if (lastMsg?.isStreaming) {
-    lastMsg.isStreaming = false
-  }
-}
-
-const clearMessages = () => {
-  messages.value = []
-  const session = sessions.value.find(s => s.id === activeSessionId.value)
-  if (session) session.messages = []
 }
 
 const copyMessage = (content: string) => {
   navigator.clipboard.writeText(content)
 }
-
-const exportChat = () => {
-  const session = sessions.value.find(s => s.id === activeSessionId.value)
-  if (!session) return
-
-  const content = messages.value.map(m =>
-    `[${m.role === 'user' ? '用户' : 'MiMo'}] ${formatTime(m.timestamp)}\n${m.content}`
-  ).join('\n\n')
-
-  const blob = new Blob([content], { type: 'text/plain' })
-  const url = URL.createObjectURL(blob)
-  const link = document.createElement('a')
-  link.href = url
-  link.download = `${session.title}.txt`
-  link.click()
-  URL.revokeObjectURL(url)
-}
-
-const formatFileSize = (bytes: number) => {
-  if (bytes < 1024) return bytes + ' B'
-  if (bytes < 1024 * 1024) return (bytes / 1024).toFixed(1) + ' KB'
-  return (bytes / (1024 * 1024)).toFixed(1) + ' MB'
-}
-
-const formatTime = (date: Date) => {
-  const now = new Date()
-  const diff = now.getTime() - date.getTime()
-  if (diff < 60000) return '刚刚'
-  if (diff < 3600000) return `${Math.floor(diff / 60000)}分钟前`
-  if (diff < 86400000) return `${Math.floor(diff / 3600000)}小时前`
-  return date.toLocaleDateString('zh-CN')
-}
-
-onMounted(() => {
-  modelStore.selectModel(selectedModelId.value)
-  handleRouteQuery()
-})
-
-// Handle file content from Files page
-function handleRouteQuery() {
-  const fileContent = route.query.fileContent as string
-  const fileName = route.query.fileName as string
-  if (fileContent) {
-    inputText.value = `请帮我分析文件 "${fileName}" 的内容：\n\n${fileContent}`
-  }
-}
-
-watch(() => route.query, () => {
-  handleRouteQuery()
-})
 </script>
 
 <style lang="scss" scoped>
-.chat-container {
-  .session-item {
-    display: flex;
-    align-items: center;
-    padding: 10px 12px;
-    cursor: pointer;
-    border-bottom: 1px solid rgba(255, 255, 255, 0.05);
-    transition: background-color 0.2s;
+@import '@/styles/hermes-vars.scss';
 
-    &:hover {
-      background-color: rgba(255, 255, 255, 0.05);
-      .session-actions { opacity: 1; }
-    }
+.chat-view {
+  display: flex;
+  height: 100vh;
+  overflow: hidden;
+}
 
-    &.active {
-      background-color: rgba(24, 160, 88, 0.15);
-    }
+// 会话列表
+.session-sidebar {
+  width: 260px;
+  background: var(--bg-sidebar);
+  border-right: 1px solid var(--border-color);
+  display: flex;
+  flex-direction: column;
+  flex-shrink: 0;
+}
 
-    .session-content {
-      flex: 1;
-      min-width: 0;
+.session-header {
+  padding: 12px;
+  border-bottom: 1px solid var(--border-color);
+}
 
-      .session-title {
-        font-size: 14px;
-        white-space: nowrap;
-        overflow: hidden;
-        text-overflow: ellipsis;
-      }
+.new-chat-btn {
+  width: 100%;
+  padding: 10px 12px;
+  background: var(--accent-primary);
+  color: var(--text-on-accent);
+  border: none;
+  border-radius: 6px;
+  font-size: 13px;
+  font-weight: 500;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  transition: all .15s;
 
-      .session-meta {
-        display: flex;
-        justify-content: space-between;
-        margin-top: 4px;
-      }
-    }
+  &:hover {
+    background: var(--accent-hover);
+  }
+}
 
-    .session-actions {
-      opacity: 0;
-      transition: opacity 0.2s;
-      display: flex;
-      gap: 4px;
+.session-list {
+  flex: 1;
+  overflow-y: auto;
+  padding: 8px;
+}
+
+.session-item {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 10px 12px;
+  border-radius: 6px;
+  cursor: pointer;
+  transition: all .15s;
+  margin-bottom: 2px;
+
+  &:hover {
+    background: rgba(var(--accent-primary-rgb), .06);
+
+    .session-delete {
+      opacity: 1;
     }
   }
 
-  .toolbar {
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
-    padding: 12px 16px;
-    border-bottom: 1px solid rgba(255, 255, 255, 0.09);
+  &.active {
+    background: rgba(var(--accent-primary-rgb), .12);
+  }
+}
+
+.session-content {
+  flex: 1;
+  min-width: 0;
+}
+
+.session-title {
+  display: block;
+  font-size: 13px;
+  font-weight: 500;
+  color: var(--text-primary);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.session-meta {
+  display: block;
+  font-size: 11px;
+  color: var(--text-muted);
+  margin-top: 2px;
+}
+
+.session-delete {
+  opacity: 0;
+  background: none;
+  border: none;
+  color: var(--text-muted);
+  cursor: pointer;
+  padding: 4px;
+  border-radius: 4px;
+  transition: all .15s;
+
+  &:hover {
+    color: var(--error);
+    background: rgba(var(--error-rgb), .1);
+  }
+}
+
+// 对话区域
+.chat-main {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+}
+
+// 模型选择
+.model-selector {
+  padding: 12px 16px;
+  border-bottom: 1px solid var(--border-color);
+  position: relative;
+}
+
+.model-label {
+  color: var(--text-muted);
+  text-transform: uppercase;
+  letter-spacing: .5px;
+  margin-bottom: 6px;
+  font-size: 11px;
+  font-weight: 600;
+  display: block;
+}
+
+.model-trigger {
+  background: var(--bg-input);
+  border: 1px solid var(--border-color);
+  width: 100%;
+  color: var(--text-primary);
+  cursor: pointer;
+  border-radius: 6px;
+  align-items: center;
+  gap: 6px;
+  padding: 6px 8px;
+  font-size: 13px;
+  transition: border-color .15s;
+  display: flex;
+
+  &:hover {
+    border-color: var(--accent-muted);
+  }
+}
+
+.model-name {
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  text-align: left;
+  flex: 1;
+  overflow: hidden;
+}
+
+.model-arrow {
+  color: var(--text-muted);
+  flex-shrink: 0;
+}
+
+.model-dropdown {
+  position: absolute;
+  top: 100%;
+  left: 16px;
+  right: 16px;
+  background: var(--bg-card);
+  border: 1px solid var(--border-color);
+  border-radius: 8px;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+  z-index: 100;
+  margin-top: 4px;
+}
+
+.model-list {
+  max-height: 300px;
+  overflow-y: auto;
+  padding: 4px;
+}
+
+.model-item {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 8px 12px;
+  border-radius: 6px;
+  cursor: pointer;
+  transition: all .15s;
+
+  &:hover {
+    background: rgba(var(--accent-primary-rgb), .06);
   }
 
-  .messages {
+  &.active {
+    color: var(--accent-primary);
+  }
+}
+
+.model-item-name {
+  font-size: 13px;
+}
+
+.model-check {
+  color: var(--accent-primary);
+  flex-shrink: 0;
+}
+
+// 消息列表
+.messages-container {
+  flex: 1;
+  overflow-y: auto;
+  padding: 16px;
+}
+
+.empty-state {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  height: 100%;
+  color: var(--text-muted);
+
+  svg {
+    opacity: .5;
+    margin-bottom: 16px;
+  }
+
+  p {
+    font-size: 16px;
+    color: var(--text-secondary);
+    margin-bottom: 8px;
+  }
+
+  span {
+    font-size: 13px;
+  }
+}
+
+.message {
+  display: flex;
+  gap: 12px;
+  margin-bottom: 16px;
+  max-width: 80%;
+
+  &.user {
+    margin-left: auto;
+    flex-direction: row-reverse;
+
+    .message-body {
+      align-items: flex-end;
+    }
+
+    .message-content {
+      background: var(--msg-user-bg);
+    }
+  }
+
+  &.assistant {
+    margin-right: auto;
+  }
+}
+
+.message-avatar {
+  width: 32px;
+  height: 32px;
+  background: var(--bg-secondary);
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: var(--text-muted);
+  flex-shrink: 0;
+}
+
+.message-body {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.message-header {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.message-sender {
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--text-secondary);
+}
+
+.message-content {
+  padding: 10px 14px;
+  border-radius: 8px;
+  background: var(--msg-assistant-bg);
+  font-size: 14px;
+  line-height: 1.6;
+  white-space: pre-wrap;
+  word-break: break-word;
+}
+
+.loading-message {
+  display: flex;
+  gap: 4px;
+  padding: 14px;
+}
+
+.loading-dot {
+  width: 8px;
+  height: 8px;
+  background: var(--text-muted);
+  border-radius: 50%;
+  animation: loading 1.4s infinite both;
+
+  &:nth-child(2) {
+    animation-delay: .2s;
+  }
+
+  &:nth-child(3) {
+    animation-delay: .4s;
+  }
+}
+
+@keyframes loading {
+  0%, 80%, 100% {
+    transform: scale(0);
+    opacity: .5;
+  }
+  40% {
+    transform: scale(1);
+    opacity: 1;
+  }
+}
+
+.message-actions {
+  display: flex;
+  gap: 4px;
+  opacity: 0;
+  transition: opacity .15s;
+
+  .message:hover & {
+    opacity: 1;
+  }
+}
+
+.action-btn {
+  background: none;
+  border: none;
+  color: var(--text-muted);
+  cursor: pointer;
+  padding: 2px 6px;
+  border-radius: 4px;
+  font-size: 11px;
+  transition: all .15s;
+
+  &:hover {
+    color: var(--text-primary);
+    background: rgba(var(--accent-primary-rgb), .06);
+  }
+}
+
+// 输入区域
+.input-area {
+  padding: 16px;
+  border-top: 1px solid var(--border-color);
+}
+
+.input-wrapper {
+  display: flex;
+  align-items: flex-end;
+  gap: 8px;
+  background: var(--bg-input);
+  border: 1px solid var(--border-color);
+  border-radius: 8px;
+  padding: 8px 12px;
+  transition: border-color .15s;
+
+  &:focus-within {
+    border-color: var(--accent-muted);
+  }
+
+  textarea {
     flex: 1;
-    overflow-y: auto;
-    padding: 16px;
+    background: none;
+    border: none;
+    outline: none;
+    color: var(--text-primary);
+    font-size: 14px;
+    font-family: inherit;
+    resize: none;
+    min-height: 24px;
+    max-height: 120px;
+    line-height: 1.5;
 
-    .empty-state {
-      display: flex;
-      flex-direction: column;
-      align-items: center;
-      justify-content: center;
-      height: 100%;
-    }
-
-    .message {
-      display: flex;
-      gap: 12px;
-      margin-bottom: 16px;
-
-      &.user {
-        flex-direction: row-reverse;
-        .message-body { align-items: flex-end; }
-        .message-content { background-color: rgba(24, 160, 88, 0.1); }
-      }
-
-      .message-body {
-        display: flex;
-        flex-direction: column;
-        max-width: 70%;
-
-        .message-header {
-          display: flex;
-          gap: 8px;
-          align-items: center;
-          margin-bottom: 4px;
-        }
-
-        .message-content {
-          padding: 10px 14px;
-          border-radius: 8px;
-          background-color: rgba(255, 255, 255, 0.05);
-          white-space: pre-wrap;
-          line-height: 1.6;
-
-          &.streaming {
-            .cursor {
-              animation: blink 1s infinite;
-            }
-          }
-        }
-
-        .message-files {
-          margin-top: 8px;
-          .file-item {
-            display: flex;
-            align-items: center;
-            gap: 6px;
-            padding: 6px 10px;
-            background-color: rgba(255, 255, 255, 0.05);
-            border-radius: 4px;
-            font-size: 12px;
-          }
-        }
-
-        .message-actions {
-          margin-top: 4px;
-          display: flex;
-          align-items: center;
-        }
-      }
-    }
-  }
-
-  .input-area {
-    padding: 16px;
-    border-top: 1px solid rgba(255, 255, 255, 0.09);
-
-    .uploaded-files {
-      display: flex;
-      flex-wrap: wrap;
-      gap: 8px;
-      margin-bottom: 8px;
-
-      .file-preview {
-        display: flex;
-        align-items: center;
-        gap: 6px;
-        padding: 6px 10px;
-        background-color: rgba(255, 255, 255, 0.05);
-        border-radius: 4px;
-        font-size: 12px;
-      }
-    }
-
-    .input-toolbar {
-      display: flex;
-      justify-content: space-between;
-      align-items: center;
-      margin-bottom: 8px;
+    &::placeholder {
+      color: var(--text-muted);
     }
   }
 }
 
-@keyframes blink {
-  0%, 100% { opacity: 1; }
-  50% { opacity: 0; }
+.send-btn {
+  width: 36px;
+  height: 36px;
+  background: var(--accent-primary);
+  color: var(--text-on-accent);
+  border: none;
+  border-radius: 6px;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  transition: all .15s;
+
+  &:hover {
+    background: var(--accent-hover);
+  }
+
+  &:disabled {
+    opacity: .4;
+    cursor: not-allowed;
+  }
+}
+
+.input-hint {
+  text-align: center;
+  color: var(--text-muted);
+  font-size: 11px;
+  margin-top: 8px;
 }
 </style>

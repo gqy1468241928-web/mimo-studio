@@ -1,183 +1,149 @@
 <template>
-  <div class="app-layout">
+  <div class="app-layout dark">
     <!-- 侧边栏 -->
-    <aside class="sidebar glass" :class="{ collapsed: sidebarCollapsed }">
+    <aside class="sidebar" :class="{ collapsed: sidebarCollapsed }">
       <!-- Logo -->
-      <div class="sidebar-header">
-        <div class="logo" @click="sidebarCollapsed = !sidebarCollapsed">
-          <div class="logo-icon">
-            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-              <path d="M12 2L2 7l10 5 10-5-10-5z"/>
-              <path d="M2 17l10 5 10-5"/>
-              <path d="M2 12l10 5 10-5"/>
-            </svg>
-          </div>
-          <span v-if="!sidebarCollapsed" class="logo-text gradient-text">MiMo Studio</span>
+      <div class="sidebar-logo" @click="sidebarCollapsed = !sidebarCollapsed">
+        <div class="logo-icon">
+          <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <path d="M12 2L2 7l10 5 10-5-10-5z"/>
+            <path d="M2 17l10 5 10-5"/>
+            <path d="M2 12l10 5 10-5"/>
+          </svg>
         </div>
+        <span class="logo-text">MiMo Studio</span>
       </div>
 
-      <!-- 菜单 -->
+      <!-- 折叠按钮 -->
+      <button class="collapse-btn" @click="sidebarCollapsed = !sidebarCollapsed">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+          <polyline points="11 17 6 12 11 7"/>
+          <polyline points="18 17 13 12 18 7"/>
+        </svg>
+      </button>
+
+      <!-- 导航菜单 -->
       <nav class="sidebar-nav">
         <!-- 对话模块 -->
         <div class="nav-group">
-          <div class="nav-group-label" v-if="!sidebarCollapsed">对话</div>
-          <router-link to="/chat" class="nav-item glass-hover" :class="{ active: $route.name === 'chat' }">
-            <span class="nav-icon">
+          <div class="nav-group-label">
+            <span>对话</span>
+            <svg class="nav-group-arrow" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <polyline points="6 9 12 15 18 9"/>
+            </svg>
+          </div>
+          <div class="nav-group-items">
+            <router-link to="/chat" class="nav-item" :class="{ active: $route.name === 'chat' }">
               <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
                 <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/>
               </svg>
-            </span>
-            <span v-if="!sidebarCollapsed" class="nav-text">对话</span>
-          </router-link>
-          <router-link to="/tts" class="nav-item glass-hover" :class="{ active: $route.name === 'tts' }">
-            <span class="nav-icon">
+              <span>对话</span>
+            </router-link>
+            <router-link to="/tts" class="nav-item" :class="{ active: $route.name === 'tts' }">
               <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
                 <polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5"/>
                 <path d="M15.54 8.46a5 5 0 0 1 0 7.07"/>
-                <path d="M19.07 4.93a10 10 0 0 1 0 14.14"/>
               </svg>
-            </span>
-            <span v-if="!sidebarCollapsed" class="nav-text">语音合成</span>
-          </router-link>
+              <span>语音合成</span>
+            </router-link>
+          </div>
         </div>
 
         <!-- 工具模块 -->
         <div class="nav-group">
-          <div class="nav-group-label" v-if="!sidebarCollapsed">工具</div>
-          <router-link to="/models" class="nav-item glass-hover" :class="{ active: $route.name === 'models' }">
-            <span class="nav-icon">
+          <div class="nav-group-label">
+            <span>工具</span>
+            <svg class="nav-group-arrow" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <polyline points="6 9 12 15 18 9"/>
+            </svg>
+          </div>
+          <div class="nav-group-items">
+            <router-link to="/models" class="nav-item" :class="{ active: $route.name === 'models' }">
               <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
                 <rect x="2" y="3" width="20" height="14" rx="2"/>
                 <path d="M8 21h8"/>
                 <path d="M12 17v4"/>
               </svg>
-            </span>
-            <span v-if="!sidebarCollapsed" class="nav-text">模型</span>
-          </router-link>
-          <router-link to="/files" class="nav-item glass-hover" :class="{ active: $route.name === 'files' }">
-            <span class="nav-icon">
+              <span>模型</span>
+            </router-link>
+            <router-link to="/files" class="nav-item" :class="{ active: $route.name === 'files' }">
               <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
                 <path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z"/>
               </svg>
-            </span>
-            <span v-if="!sidebarCollapsed" class="nav-text">文件</span>
-          </router-link>
-          <router-link to="/statistics" class="nav-item glass-hover" :class="{ active: $route.name === 'statistics' }">
-            <span class="nav-icon">
+              <span>文件</span>
+            </router-link>
+            <router-link to="/statistics" class="nav-item" :class="{ active: $route.name === 'statistics' }">
               <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
                 <line x1="18" y1="20" x2="18" y2="10"/>
                 <line x1="12" y1="20" x2="12" y2="4"/>
                 <line x1="6" y1="20" x2="6" y2="14"/>
               </svg>
-            </span>
-            <span v-if="!sidebarCollapsed" class="nav-text">用量</span>
-          </router-link>
+              <span>用量</span>
+            </router-link>
+          </div>
         </div>
 
         <!-- 系统模块 -->
-        <div class="nav-group">
-          <div class="nav-group-label" v-if="!sidebarCollapsed">系统</div>
-          <router-link to="/settings" class="nav-item glass-hover" :class="{ active: $route.name === 'settings' }">
-            <span class="nav-icon">
+        <div class="nav-group nav-group-bottom">
+          <div class="nav-group-label">
+            <span>系统</span>
+            <svg class="nav-group-arrow" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <polyline points="6 9 12 15 18 9"/>
+            </svg>
+          </div>
+          <div class="nav-group-items">
+            <router-link to="/settings" class="nav-item" :class="{ active: $route.name === 'settings' }">
               <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
                 <circle cx="12" cy="12" r="3"/>
                 <path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06A1.65 1.65 0 0 0 4.68 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z"/>
               </svg>
-            </span>
-            <span v-if="!sidebarCollapsed" class="nav-text">设置</span>
-          </router-link>
+              <span>设置</span>
+            </router-link>
+          </div>
         </div>
       </nav>
 
       <!-- 底部信息 -->
       <div class="sidebar-footer">
         <!-- 用户 -->
-        <div class="footer-item user-info glass-hover">
-          <div class="user-avatar">
-            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-              <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/>
-              <circle cx="12" cy="7" r="4"/>
-            </svg>
-          </div>
-          <span v-if="!sidebarCollapsed" class="nav-text">{{ username }}</span>
-        </div>
-
-        <!-- 连接状态 -->
-        <div class="footer-item">
-          <span class="status-dot connected"></span>
-          <span v-if="!sidebarCollapsed" class="nav-text">已连接</span>
-        </div>
-
-        <!-- 版本 -->
-        <div v-if="!sidebarCollapsed" class="footer-item version">
-          MiMo Studio v1.0.0
-        </div>
-
-        <!-- 退出 -->
-        <div class="footer-item logout glass-hover" @click="logout">
+        <div class="logout-item" @click="logout">
           <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
             <path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/>
             <polyline points="16 17 21 12 16 7"/>
             <line x1="21" y1="12" x2="9" y2="12"/>
           </svg>
-          <span v-if="!sidebarCollapsed" class="nav-text">退出登录</span>
+          <span class="logout-username">{{ username }}</span>
+        </div>
+
+        <!-- 连接状态 -->
+        <div class="status-row">
+          <div class="status-indicator connected">
+            <div class="status-dot"></div>
+            <span class="status-text">已连接</span>
+          </div>
+        </div>
+
+        <!-- 版本信息 -->
+        <div class="version-info">
+          <span class="version-text">MiMo Studio v1.0.0</span>
         </div>
       </div>
     </aside>
 
     <!-- 主内容区 -->
-    <main class="main-content">
-      <!-- 顶部栏 -->
-      <header class="top-bar glass">
-        <div class="top-bar-left">
-          <button class="btn-icon glass-hover" @click="sidebarCollapsed = !sidebarCollapsed">
-            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-              <line x1="3" y1="12" x2="21" y2="12"/>
-              <line x1="3" y1="6" x2="21" y2="6"/>
-              <line x1="3" y1="18" x2="21" y2="18"/>
-            </svg>
-          </button>
-          <h1 class="page-title">{{ currentTitle }}</h1>
-        </div>
-        <div class="top-bar-right">
-          <button class="btn-gradient" @click="$router.push('/chat')">
-            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-              <line x1="12" y1="5" x2="12" y2="19"/>
-              <line x1="5" y1="12" x2="19" y2="12"/>
-            </svg>
-            新建对话
-          </button>
-        </div>
-      </header>
-
-      <!-- 页面内容 -->
-      <div class="page-content">
-        <router-view />
-      </div>
+    <main class="app-main">
+      <router-view />
     </main>
   </div>
 </template>
 
 <script setup lang="ts">
-import { ref, computed } from 'vue'
-import { useRouter, useRoute } from 'vue-router'
+import { ref } from 'vue'
+import { useRouter } from 'vue-router'
 
 const router = useRouter()
-const route = useRoute()
 const sidebarCollapsed = ref(false)
 const username = ref(localStorage.getItem('mimo-user') || 'Admin')
-
-const titleMap: Record<string, string> = {
-  dashboard: '仪表板',
-  models: '模型管理',
-  chat: '对话',
-  tts: '语音合成',
-  statistics: '使用统计',
-  files: '文件管理',
-  settings: '设置'
-}
-
-const currentTitle = computed(() => titleMap[route.name as string] || 'MiMo Studio')
 
 const logout = () => {
   localStorage.removeItem('mimo-token')
@@ -187,48 +153,126 @@ const logout = () => {
 </script>
 
 <style lang="scss" scoped>
-@import '@/styles/design-system.scss';
+@import '@/styles/hermes-vars.scss';
 
 .app-layout {
-  display: flex;
   height: 100vh;
+  width: 100%;
+  max-width: 100%;
+  display: flex;
   overflow: hidden;
-  background: linear-gradient(135deg, var(--bg-primary), var(--bg-secondary));
-  color: var(--text-primary);
-  font-family: var(--font-sans);
 }
 
 // 侧边栏
 .sidebar {
-  width: var(--sidebar-width);
-  display: flex;
+  width: 240px;
+  height: 100vh;
+  background-color: var(--bg-sidebar);
+  border-right: 1px solid var(--border-color);
   flex-direction: column;
-  transition: width var(--transition-normal);
-  overflow: hidden;
-  z-index: 10;
+  flex-shrink: 0;
+  padding: 0 12px 20px;
+  transition: width .25s;
+  display: flex;
+  position: relative;
 
   &.collapsed {
-    width: var(--sidebar-collapsed-width);
+    width: 64px;
+    padding: 0 8px 12px;
+    overflow: hidden;
+
+    .sidebar-logo {
+      justify-content: center;
+      gap: 0;
+      margin: 0 -8px;
+      padding: 12px 4px 8px;
+
+      .logo-text {
+        display: none;
+      }
+    }
+
+    .collapse-btn {
+      margin: 0 auto 8px;
+      display: flex;
+    }
+
+    .nav-group-label {
+      letter-spacing: 0;
+      justify-content: center;
+      gap: 2px;
+      padding: 8px 0 4px;
+
+      span {
+        text-align: center;
+        text-overflow: ellipsis;
+        white-space: nowrap;
+        max-width: 36px;
+        overflow: hidden;
+      }
+    }
+
+    .nav-item {
+      justify-content: center;
+      gap: 0;
+      padding: 10px 4px;
+
+      span {
+        display: none;
+      }
+
+      svg {
+        flex-shrink: 0;
+      }
+    }
+
+    .sidebar-footer {
+      .logout-item {
+        border-radius: 6px;
+        margin: 0;
+        padding: 10px 4px;
+
+        span {
+          display: none;
+        }
+      }
+
+      .status-text {
+        display: none;
+      }
+
+      .status-row {
+        justify-content: center;
+      }
+
+      .version-info {
+        justify-content: center;
+        padding: 4px 0;
+
+        .version-text {
+          display: none;
+        }
+      }
+    }
   }
 }
 
-.sidebar-header {
-  padding: var(--space-4);
-  border-bottom: 1px solid var(--border-color);
-}
-
-.logo {
-  display: flex;
-  align-items: center;
-  gap: var(--space-3);
+.sidebar-logo {
+  color: var(--text-primary);
   cursor: pointer;
-  user-select: none;
+  background-color: var(--bg-card);
+  align-items: center;
+  gap: 10px;
+  margin: 0 -12px;
+  padding: 20px 12px;
+  display: flex;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08);
 
   .logo-icon {
-    width: 32px;
-    height: 32px;
-    background: var(--color-primary-gradient);
-    border-radius: var(--radius-md);
+    width: 28px;
+    height: 28px;
+    background: linear-gradient(135deg, #4a90d9, #6ba3d6);
+    border-radius: 6px;
     display: flex;
     align-items: center;
     justify-content: center;
@@ -237,64 +281,143 @@ const logout = () => {
   }
 
   .logo-text {
-    font-size: var(--text-lg);
-    font-weight: 600;
+    letter-spacing: .5px;
     white-space: nowrap;
+    font-size: 16px;
+    font-weight: 600;
   }
+}
+
+.collapse-btn {
+  appearance: none;
+  width: 28px;
+  height: 28px;
+  color: var(--text-muted);
+  cursor: pointer;
+  background: transparent;
+  border: none;
+  border-radius: 6px;
+  flex-shrink: 0;
+  justify-content: center;
+  align-items: center;
+  margin-left: auto;
+  margin-right: 0;
+  text-decoration: none;
+  transition: all .15s;
+  display: flex;
+
+  &:hover {
+    color: var(--text-primary);
+    background-color: rgba(var(--accent-primary-rgb), .08);
+  }
+}
+
+.sidebar:not(.collapsed) .collapse-btn {
+  z-index: 5;
+  position: absolute;
+  top: 18px;
+  right: 16px;
 }
 
 // 导航
 .sidebar-nav {
+  scrollbar-width: none;
+  flex-direction: column;
   flex: 1;
+  gap: 6px;
+  min-height: 0;
+  padding-top: 12px;
+  display: flex;
   overflow-y: auto;
-  padding: var(--space-2) 0;
+
+  &::-webkit-scrollbar {
+    display: none;
+  }
 }
 
 .nav-group {
-  margin-bottom: var(--space-1);
+  flex-direction: column;
+  gap: 2px;
+  display: flex;
+
+  &.nav-group-bottom {
+    border-top: 1px solid var(--border-color);
+    margin-top: auto;
+    padding-top: 8px;
+  }
+}
+
+.nav-group-items {
+  flex-direction: column;
+  gap: 2px;
+  display: flex;
 }
 
 .nav-group-label {
-  padding: var(--space-2) var(--space-4) var(--space-1);
-  font-size: var(--text-xs);
-  color: var(--text-tertiary);
+  color: var(--text-muted);
   text-transform: uppercase;
-  letter-spacing: 0.5px;
+  letter-spacing: .8px;
+  cursor: pointer;
+  user-select: none;
+  border-radius: 6px;
+  justify-content: space-between;
+  align-items: center;
+  padding: 8px 12px 4px;
+  font-size: 10px;
+  font-weight: 600;
+  transition: color .15s;
+  display: flex;
+
+  &:hover {
+    color: var(--text-secondary);
+  }
+}
+
+.nav-group:first-child .nav-group-label {
+  padding-top: 0;
+}
+
+.nav-group-arrow {
+  flex-shrink: 0;
+  transition: transform .15s;
+
+  &.collapsed {
+    transform: rotate(-90deg);
+  }
 }
 
 .nav-item {
-  display: flex;
-  align-items: center;
-  gap: var(--space-3);
-  padding: var(--space-2) var(--space-4);
+  appearance: none;
   color: var(--text-secondary);
-  text-decoration: none;
-  transition: all var(--transition-fast);
   cursor: pointer;
-  margin: 0 var(--space-2);
-  border-radius: var(--radius-md);
+  text-align: left;
+  background: transparent;
+  border: none;
+  border-radius: 6px;
+  align-items: center;
+  gap: 10px;
+  width: 100%;
+  padding: 12px;
+  font-size: 14px;
+  text-decoration: none;
+  transition: all .15s;
+  display: flex;
 
   &:hover {
+    background-color: rgba(var(--accent-primary-rgb), .06);
     color: var(--text-primary);
   }
 
   &.active {
-    background: rgba(6, 182, 212, 0.15);
-    color: var(--color-primary-light);
-    box-shadow: inset 3px 0 0 var(--color-primary);
+    background-color: rgba(var(--accent-primary-rgb), .12);
+    color: var(--accent-primary);
   }
 
-  .nav-icon {
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    width: 20px;
-    height: 20px;
+  svg {
     flex-shrink: 0;
   }
 
-  .nav-text {
-    font-size: var(--text-sm);
+  span {
     white-space: nowrap;
   }
 }
@@ -302,135 +425,90 @@ const logout = () => {
 // 底部
 .sidebar-footer {
   border-top: 1px solid var(--border-color);
-  padding: var(--space-2) 0;
+  padding-top: 8px;
 }
 
-.footer-item {
+.logout-item {
+  color: var(--text-muted);
+  border-radius: 0;
+  margin: 0 -12px;
+  padding: 10px 12px;
+  font-size: 13px;
+  cursor: pointer;
   display: flex;
   align-items: center;
-  gap: var(--space-3);
-  padding: var(--space-2) var(--space-4);
-  font-size: var(--text-xs);
-  color: var(--text-tertiary);
-  margin: 0 var(--space-2);
-  border-radius: var(--radius-md);
+  gap: 8px;
 
-  &.user-info {
-    color: var(--text-secondary);
+  &:hover {
+    color: var(--error);
+    background: rgba(var(--error-rgb), .06);
   }
 
-  &.version {
-    justify-content: center;
-    padding: var(--space-1) var(--space-4);
+  svg, span:not(.logout-username) {
+    flex-shrink: 0;
   }
 
-  &.logout {
-    cursor: pointer;
-    color: var(--text-tertiary);
-
-    &:hover {
-      background: rgba(239, 68, 68, 0.1);
-      color: var(--color-error);
-    }
+  .logout-username {
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    text-align: right;
+    width: 96px;
+    min-width: 0;
+    max-width: 40%;
+    color: var(--text-muted);
+    flex: 0 96px;
+    margin-left: auto;
+    font-size: 12px;
+    overflow: hidden;
   }
+}
 
-  .user-avatar {
-    width: 24px;
-    height: 24px;
-    background: var(--bg-tertiary);
-    border-radius: var(--radius-full);
-    display: flex;
-    align-items: center;
-    justify-content: center;
+.status-row {
+  justify-content: space-between;
+  align-items: center;
+  padding: 8px 12px;
+  display: flex;
+}
+
+.status-indicator {
+  align-items: center;
+  gap: 8px;
+  font-size: 12px;
+  display: flex;
+
+  &.connected .status-dot {
+    background-color: var(--success);
+    box-shadow: 0 0 6px rgba(var(--success-rgb), .5);
   }
 
   .status-dot {
+    border-radius: 50%;
+    flex-shrink: 0;
     width: 8px;
     height: 8px;
-    border-radius: var(--radius-full);
-    background: var(--text-disabled);
-    flex-shrink: 0;
+  }
 
-    &.connected {
-      background: var(--color-success);
-      box-shadow: 0 0 8px rgba(34, 197, 94, 0.5);
-    }
+  .status-text {
+    color: var(--text-secondary);
   }
 }
 
-// 主内容区
-.main-content {
-  flex: 1;
+.version-info {
+  color: var(--text-muted);
+  flex-direction: row;
+  justify-content: space-between;
+  align-items: center;
+  gap: 6px;
+  padding: 2px 12px 8px;
+  font-size: 11px;
   display: flex;
-  flex-direction: column;
   overflow: hidden;
 }
 
-.top-bar {
-  height: var(--topbar-height);
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  padding: 0 var(--space-5);
-  flex-shrink: 0;
-  z-index: 5;
-
-  .top-bar-left {
-    display: flex;
-    align-items: center;
-    gap: var(--space-3);
-  }
-
-  .top-bar-right {
-    display: flex;
-    align-items: center;
-    gap: var(--space-2);
-  }
-}
-
-.page-title {
-  font-size: var(--text-base);
-  font-weight: 500;
-  color: var(--text-primary);
-  margin: 0;
-}
-
-.btn-icon {
-  background: none;
-  border: none;
-  color: var(--text-secondary);
-  cursor: pointer;
-  padding: var(--space-2);
-  border-radius: var(--radius-md);
-  display: flex;
-  align-items: center;
-  justify-content: center;
-
-  &:hover {
-    color: var(--text-primary);
-  }
-}
-
-.btn-gradient {
-  display: flex;
-  align-items: center;
-  gap: var(--space-2);
-  padding: var(--space-2) var(--space-4);
-  border-radius: var(--radius-md);
-  font-size: var(--text-sm);
-  font-weight: 500;
-  cursor: pointer;
-  transition: all var(--transition-fast);
-
-  &:hover {
-    transform: translateY(-1px);
-    box-shadow: var(--shadow-glow);
-  }
-}
-
-.page-content {
+// 主内容区
+.app-main {
+  background-color: var(--bg-primary);
   flex: 1;
   overflow-y: auto;
-  padding: var(--space-5);
 }
 </style>
