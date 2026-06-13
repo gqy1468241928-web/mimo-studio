@@ -233,6 +233,40 @@ export const useFileStore = defineStore('file', () => {
     }
   }
 
+  // Create folder (adds a placeholder file to register the folder)
+  const createFolder = (folderName: string) => {
+    const folderPath = folderName.startsWith('/') ? folderName : `/${folderName}`
+    // Check if folder already exists
+    if (files.value.some(f => f.folder === folderPath)) {
+      return false // Folder already exists
+    }
+    // Create a placeholder file to register the folder
+    const placeholder: FileItem = {
+      id: `folder_${Date.now()}_${Math.random().toString(36).slice(2, 9)}`,
+      name: '.folder',
+      size: 0,
+      type: 'application/x-folder',
+      category: 'other',
+      modified: new Date().toLocaleString('zh-CN'),
+      addedAt: new Date().toLocaleString('zh-CN'),
+      folder: folderPath,
+      tags: [],
+    }
+    files.value.push(placeholder)
+    save()
+    return true
+  }
+
+  // Delete folder and all files in it
+  const deleteFolder = (folderPath: string) => {
+    files.value = files.value.filter(f => f.folder !== folderPath)
+    selectedFiles.value = selectedFiles.value.filter(id => {
+      const file = files.value.find(f => f.id === id)
+      return file && file.folder !== folderPath
+    })
+    save()
+  }
+
   // Add tag
   const addTag = (id: string, tag: string) => {
     const file = files.value.find(f => f.id === id)
@@ -386,6 +420,8 @@ export const useFileStore = defineStore('file', () => {
     deleteFiles,
     renameFile,
     moveFile,
+    createFolder,
+    deleteFolder,
     addTag,
     removeTag,
     clearAll,

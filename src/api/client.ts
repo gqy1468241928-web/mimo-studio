@@ -12,7 +12,7 @@ client.interceptors.request.use((config) => {
     if (apiKey) {
       config.headers.Authorization = `Bearer ${apiKey}`
     }
-    if (baseUrl && config.url?.startsWith('/mimo')) {
+    if (baseUrl) {
       config.baseURL = baseUrl
     }
   }
