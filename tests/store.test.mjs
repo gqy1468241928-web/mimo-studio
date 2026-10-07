@@ -38,3 +38,10 @@ test('an accepted agent task proposal is applied exactly once',async()=>{
  await s.applyRun('run-a');await s.applyRun('run-a');
  assert.equal((await s.list('tasks')).total,1);await s.close();
 });
+
+test('a scheduled tick tolerates minor clock drift without doubling the sync interval',async()=>{
+ const s=await open();await s.saveSource({id:'drift',type:'api',enabled:true,nextRun:601000,config:{},secret:''});
+ assert.equal(await s.claimSource('drift',600990),null);
+ assert.ok(await s.claimSource('drift',600990,false,60000));
+ await s.close();
+});

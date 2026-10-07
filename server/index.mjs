@@ -5,6 +5,8 @@ import {openStore} from './db.mjs';
 import {createApp} from './app.mjs';
 import {createSynchronizer} from './sources.mjs';
 import {hashPassword} from './security.mjs';
+const bootstrapDir=path.dirname(fileURLToPath(import.meta.url));
+if(fs.existsSync(path.join(bootstrapDir,'.env')))process.loadEnvFile(path.join(bootstrapDir,'.env'));
 const production=process.env.NODE_ENV==='production';
 const config={production,appUrl:process.env.APP_URL||'http://localhost:3000',sessionKey:process.env.SESSION_SECRET,encryptionKey:process.env.CONFIG_ENCRYPTION_KEY,cronSecret:process.env.CRON_SECRET,initialHash:process.env.INITIAL_PASSWORD_HASH};
 if(!production){config.sessionKey||='a'.repeat(64);config.encryptionKey||='b'.repeat(64);config.cronSecret||='local-development-only';config.initialHash||=hashPassword(process.env.DEV_PASSWORD||'local-workbench');}

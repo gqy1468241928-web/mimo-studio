@@ -70,8 +70,8 @@ export async function openStore(options={}) {
    return source(value.id);
   }),
   deleteSource:id=>lock(async()=>{await query('DELETE FROM wb_sources WHERE id=?',[id]);}),
-  claimSource:(id,now=Date.now(),force=false)=>lock(async()=>{
-   const lease=randomUUID();const result=await query('UPDATE wb_sources SET lease=?,lease_until=? WHERE id=? AND enabled=1 AND lease_until<=?'+(force?'':' AND next_run<=?'),[lease,now+300000,id,now,...(force?[]:[now])]);return result.affectedRows?lease:null;
+  claimSource:(id,now=Date.now(),force=false,graceMs=0)=>lock(async()=>{
+   const lease=randomUUID();const result=await query('UPDATE wb_sources SET lease=?,lease_until=? WHERE id=? AND enabled=1 AND lease_until<=?'+(force?'':' AND next_run<=?'),[lease,now+300000,id,now,...(force?[]:[now+Math.max(0,Math.min(60000,graceMs))])]);return result.affectedRows?lease:null;
   }),
   finishSource:(id,lease,state,nextRun)=>lock(async()=>{
    const value=await source(id);if(!value)return;

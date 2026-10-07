@@ -61,10 +61,10 @@ async function readMail(source,secret) {
 }
 export function createSynchronizer(store,key,{reader}={}) {
  const read=reader||((s,secret)=>s.type==='imap'?readMail(s,secret):readApiSource(s,secret));let timer,stopping=false;
- async function syncOne(id,{force=false,testOnly=false}={}) {
+ async function syncOne(id,{force=false,testOnly=false,graceMs=0}={}) {
  const source=await store.getSource(id);if(!source)throw new Error('来源不存在');
  if(!source.enabled&&!testOnly)throw new Error('请先启用该来源');
- const lease=testOnly?null:await store.claimSource(id,Date.now(),force);
+ const lease=testOnly?null:await store.claimSource(id,Date.now(),force,graceMs);
  if(!testOnly&&!lease)return {skipped:true,message:'正在收取或尚未到收取时间'};
  const now=Date.now();
  try{
@@ -74,9 +74,9 @@ export function createSynchronizer(store,key,{reader}={}) {
  return {ok:true,count:result.records.length,message:testOnly?'连接成功，可读取 '+result.records.length+' 条内容':'已收取 '+result.records.length+' 条内容'};
  }catch(e){if(!testOnly)await store.finishSource(id,lease,{...source.state,lastAttempt:now,error:e.message},now+SYNC_INTERVAL);throw e;}
  }
- async function tick({force=false}={}) {
+ async function tick({force=false,graceMs=0}={}) {
  const sources=await store.listSources(),results=[];
- for(const source of sources.filter(s=>s.enabled)){if(stopping)break;try{results.push({id:source.id,...await syncOne(source.id,{force})});}catch(e){results.push({id:source.id,ok:false,message:e.message});}}
+ for(const source of sources.filter(s=>s.enabled)){if(stopping)break;try{results.push({id:source.id,...await syncOne(source.id,{force,graceMs})});}catch(e){results.push({id:source.id,ok:false,message:e.message});}}
  return {results,checkedAt:Date.now()};
  }
  return {syncOne,tick,start(){timer=setInterval(()=>tick().catch(()=>{}),30000);timer.unref();tick().catch(()=>{});},stop(){stopping=true;clearInterval(timer);}};
