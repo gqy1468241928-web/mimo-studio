@@ -34,6 +34,12 @@ export async function createApp({store,config,synchronizer,publicDir}){
  if(config.production)res.setHeader('content-security-policy',"default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self' data:; connect-src 'self'; frame-ancestors 'none'; base-uri 'self'; form-action 'self'");
  if(req.path.startsWith('/api/'))res.setHeader('cache-control','no-store');next();
  });
+ app.use((req,res,next)=>{
+ if(config.production&&req.protocol!=='https'&&req.path!=='/api/health'){
+ if(['GET','HEAD'].includes(req.method))return res.redirect(308,config.appUrl.replace(/\/$/,'')+req.originalUrl);
+ return res.status(400).json({error:'请通过 HTTPS 访问工作台'});
+ }next();
+ });
  app.use(express.json({limit:'3mb'}));
  app.use('/api',(req,res,next)=>{
  if(['POST','PUT','PATCH','DELETE'].includes(req.method)){

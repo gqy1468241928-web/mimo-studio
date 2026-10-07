@@ -31,3 +31,16 @@ test('private CRUD, secret masking, origin checks, and password changes work tog
  assert.equal((await request('/api/sync','POST',{}, {'x-cron-secret':'wrong'})).status,401);
  }finally{await new Promise(r=>server.close(r));await store.close();}
 });
+
+test('production login pages require HTTPS while public health remains readable',async()=>{
+ const store=await openStore({dialect:'sqlite'});
+ const config={sessionKey:'a'.repeat(64),encryptionKey:'b'.repeat(64),cronSecret:'private-cron',initialHash:hashPassword('test-only-password'),appUrl:'https://mimo-studio.top',production:true};
+ const app=await mod.createApp({store,config,synchronizer:{tick:async()=>({results:[]})}}),server=app.listen(0,'127.0.0.1');
+ await new Promise(r=>server.once('listening',r));const base='http://127.0.0.1:'+server.address().port;
+ try{
+ const page=await fetch(base+'/',{redirect:'manual'});assert.equal(page.status,308);assert.equal(page.headers.get('location'),'https://mimo-studio.top/');
+ assert.equal((await fetch(base+'/api/health')).status,200);
+ assert.equal((await fetch(base+'/api/auth/login',{method:'POST',headers:{'content-type':'application/json'},body:JSON.stringify({password:'test-only-password'})})).status,400);
+ assert.equal((await fetch(base+'/api/auth/login',{method:'POST',headers:{'content-type':'application/json','x-forwarded-proto':'https'},body:JSON.stringify({password:'test-only-password'})})).status,200);
+ }finally{await new Promise(r=>server.close(r));await store.close();}
+});
