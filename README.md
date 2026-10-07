@@ -56,7 +56,7 @@ Agent 只使用已有的待处理资料；每类最多 30 条，正文限制 400
 | 根目录 | . |
 | 构建脚本 | build |
 | 输出目录 | dist |
-| 入口文件 | server.mjs（部署输出目录内） |
+| 入口文件 | dist/server.mjs（相对项目根目录） |
 
 构建将前端放在 dist/public，后端放在 dist/server.mjs。运行时使用平台提供的 PORT 并监听 0.0.0.0。部署后先检查 /api/health，再检查登录、数据保存和访问限制。平台入口具体路径以实际部署日志和线上验收为准。
 
@@ -72,7 +72,7 @@ Agent 只使用已有的待处理资料；每类最多 30 条，正文限制 400
 
 第一次密码初始化保存在数据库；修改后不会被环境变量里的旧初始化密码覆盖。更换 CONFIG_ENCRYPTION_KEY 会使已保存连接密钥无法解密；更换 SESSION_SECRET 会使会话失效。
 
-cron：*/10 * * * *，POST /api/sync，请求头 X-Cron-Secret: CRON_SECRET，Content-Type: application/json，请求正文 {}。密钥只放在服务器定时任务，不写进 URL 或前端。
+cron：*/10 * * * *，运行部署后的 dist/sync.mjs。数据库与加密密钥由 Hostinger 私有定时任务环境提供，不依赖域名、网页打开状态或 HTTP 请求。该脚本与网站后台共用数据库租约，重复触发不会重复读取。/api/sync 仍保留给登录用户和带 X-Cron-Secret 的托管触发器。
 
 业务备份不包含连接密码。设置中的导出/恢复支持最多 500 条、2MB 的单次恢复；更多记录请分批导入或使用 Hostinger 数据库备份。备份文件包含业务资料，请自行保存。
 
