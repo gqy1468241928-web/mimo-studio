@@ -50,7 +50,7 @@ test('Agent settings bind stored credentials to the endpoint and expose an authe
  assert.equal(unseal((await store.getSetting('agent')).secret,key,'agent'),'new-private-key');
  const ping=await req('/api/agent/test','POST',{});assert.equal(ping.status,200);assert.equal((await ping.json()).ok,true);assert.equal(calls,1);
  const publicConfig=await (await req('/api/agent/config')).json();assert.ok(publicConfig.lastTestAt>0);assert.ok(publicConfig.hasSecret);assert.equal(publicConfig.secret,undefined);
- assert.equal((await req('/api/agent/config','POST',{endpoint,model:'minimax-m3'})).status,400);
+ assert.equal((await req('/api/agent/config','POST',{endpoint,model:'unknown-unlisted-model'})).status,400);
  assert.equal((await req('/api/agent/config','POST',{endpoint,model:'kimi-k2.7-code'})).status,200);assert.equal((await (await req('/api/agent/config')).json()).lastTestAt,0);
  }finally{await new Promise(r=>server.close(r));await store.close();}
 });

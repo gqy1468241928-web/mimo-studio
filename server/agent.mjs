@@ -12,16 +12,25 @@ export function normalizeAgentEndpoint(endpoint){
  const url=publicUrl(String(endpoint||'').trim());url.pathname=url.pathname.replace(/\/+$/,'').replace(/\/chat\/completions$/,'');return url.href.replace(/\/$/,'');
 }
 export function validateAgentModel(endpoint,model){
- if(isOpenCodeGo(endpoint)&&!openCodeGo.models.some(m=>m.id===model))throw new Error('请选择 OpenCode Go 预设中的兼容模型。当前工作台使用 Chat Completions 接口');
+ if(isOpenCodeGo(endpoint)&&!openCodeGo.models.some(m=>m.id===model))throw new Error('请选择 OpenCode Go 模型列表中的模型');
 }
 async function agentCompletion(config,key,body,session,{request=requestJSON}={}){
  const endpoint=normalizeAgentEndpoint(config.endpoint);validateAgentModel(endpoint,config.model);
- const headers={Authorization:'Bearer '+unseal(config.secret,key,'agent'),'User-Agent':'MiMo-Workbench/1.0',...(isOpenCodeGo(endpoint)?{'x-opencode-session':session}:{})};
- try{return await request(endpoint+'/chat/completions',{method:'POST',headers,timeout:60000,maxBytes:2097152,body:{model:config.model,temperature:0.2,...body}});}
- catch(e){
-  const status=Number(e.statusCode);
-  const message=status===401?'API Key 验证失败，请检查密钥是否正确':status===402||status===403?'模型服务拒绝访问，请检查 Go 订阅、API Key 所属工作区和模型权限':status===429?'模型额度或请求频率已达限制，请在服务商控制台查看后重试':status===400||status===404?'模型或接口不匹配，请使用预设地址和兼容模型':/超时/.test(e.message||'')?'模型接口响应超时，请稍后重试':'暂时无法连接模型接口，请检查服务商状态并重试';
-  throw Object.assign(new Error(message),{status:502});
+ const go=isOpenCodeGo(endpoint),format=go?openCodeGo.models.find(m=>m.id===config.model).protocol:'chat',secret=unseal(config.secret,key,'agent');
+ const headers={'User-Agent':'MiMo-Workbench/1.0',...(go?{'x-opencode-session':session}:{}),...(format==='messages'?{'x-api-key':secret,'anthropic-version':'2023-06-01'}:{Authorization:'Bearer '+secret})};
+ const messages=body.messages||[],system=messages.filter(m=>m.role==='system').map(m=>m.content).join('\n'),conversation=messages.filter(m=>m.role!=='system'),limit=body.max_tokens||(go?8192:undefined);
+ let suffix='/chat/completions',payload={model:config.model,temperature:0.2,...body,...(limit?{max_tokens:limit}:{})};
+ if(format==='messages'){suffix='/messages';payload={model:config.model,system,messages:conversation,max_tokens:limit,temperature:0.2,stream:false};}
+ if(format==='responses'){suffix='/responses';payload={model:config.model,instructions:system,input:conversation,max_output_tokens:limit,store:false,stream:false};}
+ try{
+ const raw=await request(endpoint+suffix,{method:'POST',headers,timeout:60000,maxBytes:2097152,body:payload});
+ if(format==='chat')return raw;
+ const content=format==='messages'?(raw.content||[]).filter(c=>c.type==='text'&&typeof c.text==='string').map(c=>c.text).join(''):(raw.output||[]).filter(o=>o.type==='message'&&o.role==='assistant').flatMap(o=>o.content||[]).filter(c=>c.type==='output_text'&&typeof c.text==='string').map(c=>c.text).join('');
+ return {choices:[{message:{content}}]};
+ }catch(e){
+ const status=Number(e.statusCode);
+ const message=status===401?'API Key 验证失败，请检查密钥是否正确':status===402||status===403?'模型服务拒绝访问，请检查 Go 订阅、API Key 所属工作区和模型权限':status===429?'模型额度或请求频率已达限制，请在服务商控制台查看后重试':status===400||status===404?'模型或接口不匹配，请使用预设地址和兼容模型':/超时/.test(e.message||'')?'模型接口响应超时，请稍后重试':'暂时无法连接模型接口，请检查服务商状态并重试';
+ throw Object.assign(new Error(message),{status:502});
  }
 }
 export async function testAgent(store,key,{request=requestJSON}={}){
