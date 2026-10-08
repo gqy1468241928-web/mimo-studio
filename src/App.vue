@@ -5,6 +5,7 @@ import Icon from './components/Icon.vue';
 import Modal from './components/Modal.vue';
 import RecordEditor from './components/RecordEditor.vue';
 import SourceEditor from './components/SourceEditor.vue';
+import AgentSettings from './components/AgentSettings.vue';
 const nav=[['todo','待办','todo'],['content','内容管理','content'],['library','资源库','library'],['agent','Agent','agent'],['settings','设置','settings']];
 const contentTabs=[['articles','网站文章'],['inquiries','邮件询盘'],['mic','中国制造'],['keywords','关键词'],['backlinks','外链管理']];
 const resourceTabs=[['seo','SEO 资料'],['study','学习资料'],['notes','随手笔记'],['prompts','提示词']];
@@ -16,6 +17,7 @@ const authenticated=ref(false),checking=ref(true),password=ref(''),loginBusy=ref
 const notice=ref(null),records=ref([]),total=ref(0),sources=ref([]),projects=ref([]),runs=ref([]),editor=ref(null),sourceEditor=ref(null),importOpen=ref(false);
 const quickTitle=ref(''),sourceRemove=ref(''),agentRunning=ref(false),applying=ref(''),contentBusy=ref(false);
 const agentInput=ref({action:'emails',prompt:'',site:'',projectId:''});
+const agentPreset=ref(new URLSearchParams(location.hash.split('?')[1]||'').get('agent')==='opencode-go'?'opencode-go':'');
 const agentConfig=ref({endpoint:'https://api.openai.com/v1',model:'',secret:'',hasSecret:false});
 const passwordForm=ref({currentPassword:'',password:''});
 const importForm=ref({format:'csv',text:'',name:''});
@@ -35,7 +37,7 @@ function handle(error){if(error.status===401){authenticated.value=false;password
 async function login(){loginBusy.value=true;try{await api('/auth/login',{method:'POST',body:{password:password.value}});password.value='';authenticated.value=true;notice.value=null;await refresh();await openRestoredSource();}catch(e){handle(e);}finally{loginBusy.value=false;}}
 async function logout(){try{await api('/auth/logout',{method:'POST',body:{}});}catch{}authenticated.value=false;records.value=[];sources.value=[];runs.value=[];}
 function navigate(value){page.value=value;location.hash=value;mobileOpen.value=false;search.value='';history.value=false;}
-function syncHash(){const [key,query]=location.hash.slice(1).split('?');if(nav.some(n=>n[0]===key))page.value=key;if(key==='content'){const tab=new URLSearchParams(query||'').get('tab');if(contentTabs.some(t=>t[0]===tab))contentTab.value=tab;}}
+function syncHash(){const [key,query]=location.hash.slice(1).split('?');if(nav.some(n=>n[0]===key))page.value=key;if(key==='settings')agentPreset.value=new URLSearchParams(query||'').get('agent')==='opencode-go'?'opencode-go':'';if(key==='content'){const tab=new URLSearchParams(query||'').get('tab');if(contentTabs.some(t=>t[0]===tab))contentTab.value=tab;}}
 async function syncContent(){contentBusy.value=true;try{const result=await api('/content/sync',{method:'POST',body:{kind:currentKind.value,site:siteFilter.value}}),failed=result.results.filter(r=>r.ok===false),count=result.results.reduce((n,r)=>n+(r.count||0),0);if(failed.length)inform(failed[0].message,true);else inform(result.results.some(r=>r.skipped)?'正在收取，请稍后查看列表':'已读取 '+count+' 条内容');await refresh();}catch(e){handle(e);}finally{contentBusy.value=false;}}
 function chooseContent(value){contentTab.value=value;history.value=false;search.value='';window.history.replaceState(null,'','#content?tab='+encodeURIComponent(value));}
 function chooseResource(value){resourceTab.value=value;search.value='';history.value=false;}
@@ -97,7 +99,13 @@ async function saveSource(value){busy.value=true;
 async function sourceAction(source,action){busyId.value=source.id;try{const result=await api('/sources/'+source.id+'/'+action,{method:'POST',body:{}});inform(result.message||'已完成');}catch(e){handle(e);}finally{busyId.value='';sources.value=await api('/sources').catch(()=>sources.value);}}
 async function toggleSource(source){try{await api('/sources',{method:'POST',body:{...source,enabled:!source.enabled,secret:undefined}});await loadSettings();inform(source.enabled?'自动收取已暂停':'自动收取已启用');}catch(e){handle(e);}}
 async function deleteSource(source){try{await api('/sources/'+source.id,{method:'DELETE',body:{}});sourceRemove.value='';await loadSettings();inform('来源已移除，已有内容保留');}catch(e){handle(e);}}
-async function saveAgent(){busy.value=true;try{const result=await api('/agent/config',{method:'POST',body:{endpoint:agentConfig.value.endpoint,model:agentConfig.value.model,secret:agentConfig.value.secret||undefined}});agentConfig.value={...result,secret:''};inform('Agent 配置已保存');}catch(e){handle(e);}finally{busy.value=false;}}
+async function requestAgentTest(){const result=await api('/agent/test',{method:'POST',body:{}});agentConfig.value={...agentConfig.value,lastTestAt:result.at};return result;}
+async function saveAgent(value){
+ busy.value=true;let saved=false;
+ try{const result=await api('/agent/config',{method:'POST',body:{...value,secret:value.secret||undefined}});agentConfig.value={...result,secret:''};saved=true;const tested=await requestAgentTest();inform('配置已保存，'+tested.message);}
+ catch(e){if(e.status===401)handle(e);else inform((saved?'配置已保存，但测试未通过：':'')+e.message,true);}finally{busy.value=false;}
+}
+async function testAgentConnection(){busy.value=true;try{const result=await requestAgentTest();inform(result.message);}catch(e){handle(e);}finally{busy.value=false;}}
 async function run(){agentRunning.value=true;try{const result=await api('/agent/run',{method:'POST',body:agentInput.value});runs.value=[result,...runs.value];inform('整理完成，请查看建议');}catch(e){handle(e);}finally{agentRunning.value=false;}}
 async function applyRun(run){applying.value=run.id;try{await api('/agent/runs/'+run.id+'/apply',{method:'POST',body:{}});runs.value=await api('/agent/runs');inform('建议已加入待办');}catch(e){handle(e);}finally{applying.value='';}}
 async function changePassword(){busy.value=true;try{await api('/auth/password',{method:'POST',body:passwordForm.value});passwordForm.value={currentPassword:'',password:''};authenticated.value=false;inform('密码已修改，请使用新密码登录');}catch(e){handle(e);}finally{busy.value=false;}}
@@ -170,9 +178,7 @@ onBeforeUnmount(()=>{window.removeEventListener('hashchange',syncHash);clearInte
       <div v-if="sourceRemove===s.id" class="inline-confirm"><span>移除连接后，已有内容仍会保留。</span><button class="text-button" @click="sourceRemove=''">取消</button><button class="button danger" @click="deleteSource(s)">确认移除</button></div>
      </article>
     </section>
-    <section class="settings-section panel"><div class="subheading"><div><h2>Agent API</h2><p class="muted">支持兼容 Chat Completions 的模型接口。</p></div><span v-if="agentConfig.hasSecret" class="connected-label">已保存配置</span></div>
-     <form class="stack" @submit.prevent="saveAgent"><div class="field-grid"><label>API 地址<input v-model="agentConfig.endpoint" type="url" required placeholder="https://api.example.com/v1"></label><label>模型名称<input v-model="agentConfig.model" required placeholder="填写服务商提供的模型 ID"></label></div><label>API Key<input v-model="agentConfig.secret" type="password" autocomplete="new-password" :required="!agentConfig.hasSecret" :placeholder="agentConfig.hasSecret?'留空保留已保存的密钥':'填写 API Key'"></label><div class="align-end"><button class="button primary" :disabled="busy">保存 Agent 配置</button></div></form>
-    </section>
+    <AgentSettings :config="agentConfig" :preset="agentPreset" :busy="busy" @save="saveAgent" @test="testAgentConnection"/>
     <section class="settings-section panel"><div class="subheading"><div><h2>修改密码</h2><p class="muted">修改后需要重新登录。</p></div></div><form class="stack" @submit.prevent="changePassword"><div class="field-grid"><label>当前密码<input v-model="passwordForm.currentPassword" type="password" autocomplete="current-password" required></label><label>新密码<input v-model="passwordForm.password" type="password" autocomplete="new-password" minlength="12" required placeholder="至少 12 位"></label></div><div class="align-end"><button class="button secondary" :disabled="busy">更新密码</button></div></form></section>
     <section class="settings-section backup-section"><div><h2>备份与恢复</h2><p class="muted">导出待办、内容和资料；连接密钥不包含在备份中。</p></div><div class="row-actions"><button class="button secondary" @click="backup"><Icon name="download" :size="16"/>导出备份</button><button class="button secondary" @click="openBackupImport"><Icon name="upload" :size="16"/>恢复备份</button></div></section>
    </template>

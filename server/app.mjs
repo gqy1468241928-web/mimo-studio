@@ -3,7 +3,7 @@ import {randomUUID,createHash} from 'node:crypto';
 import {recoveryRecipient,decryptRecovery,recoverySources} from './source-recovery.mjs';
 import {z} from 'zod';
 import {seal,unseal,equal,signSession,verifySession,cookieValue,hashPassword,checkPassword,publicUrl} from './security.mjs';
-import {runAgent} from './agent.mjs';
+import {runAgent,testAgent,normalizeAgentEndpoint,validateAgentModel} from './agent.mjs';
 import {getNoteDetail} from './sources.mjs';
 import {parseImport} from './import.mjs';
 import {hostingerMailboxes,validateHostingerConfig,readHostingerBody} from './hostinger-mail.mjs';
@@ -29,9 +29,9 @@ const sourceSchema=z.object({id:z.string().max(100).optional(),name:z.string().t
  listPath:z.string().max(100).optional(),idField:z.string().max(100).optional(),titleField:z.string().max(100).optional(),contentField:z.string().max(100).optional(),senderField:z.string().max(100).optional(),urlField:z.string().max(100).optional(),dateField:z.string().max(100).optional(),kind:z.enum(kinds).optional()}).default({})
 });
 const safeSource=({secret,...s})=>({...s,hasSecret:!!secret});
-const safeAgent=config=>config?{endpoint:config.endpoint,model:config.model,hasSecret:!!config.secret}:{endpoint:'https://api.openai.com/v1',model:'',hasSecret:false};
+const safeAgent=config=>config?{endpoint:config.endpoint,model:config.model,hasSecret:!!config.secret,lastTestAt:config.lastTestAt||0}:{endpoint:'https://api.openai.com/v1',model:'',hasSecret:false,lastTestAt:0};
 const asyncRoute=fn=>(req,res,next)=>Promise.resolve(fn(req,res)).catch(next);
-export async function createApp({store,config,synchronizer,publicDir}){
+export async function createApp({store,config,synchronizer,publicDir,agentRequest}){
  const app=express();app.disable('x-powered-by');app.set('trust proxy',1);
  if(!await store.getSetting('auth')){
  if(!config.initialHash)throw new Error('INITIAL_PASSWORD_HASH 尚未设置');
@@ -210,16 +210,25 @@ export async function createApp({store,config,synchronizer,publicDir}){
  app.get('/api/agent/config',asyncRoute(async(_req,res)=>res.json(safeAgent(await store.getSetting('agent')))));
  app.post('/api/agent/config',asyncRoute(async(req,res)=>{
  const input=z.object({endpoint:z.string().max(2000),model:z.string().trim().min(1).max(200),secret:z.string().max(8192).optional()}).parse(req.body);
- publicUrl(input.endpoint);const old=await store.getSetting('agent'),secret=input.secret?seal(input.secret,config.encryptionKey,'agent'):old?.secret||'';
+ input.endpoint=normalizeAgentEndpoint(input.endpoint);validateAgentModel(input.endpoint,input.model);
+ const old=await store.getSetting('agent');
+ if(old?.secret&&normalizeAgentEndpoint(old.endpoint)!==input.endpoint&&!input.secret?.trim())throw new Error('切换模型接口时请重新填写对应的 API Key');
+ const secret=input.secret?.trim()?seal(input.secret.trim(),config.encryptionKey,'agent'):old?.secret||'';
  if(!secret)throw new Error('请填写 Agent API Key');
- await store.setSetting('agent',{endpoint:input.endpoint,model:input.model,secret});res.json(safeAgent({ ...input,secret}));
+ const unchanged=old?.endpoint===input.endpoint&&old?.model===input.model&&!input.secret?.trim(),value={endpoint:input.endpoint,model:input.model,secret,lastTestAt:unchanged?old.lastTestAt||0:0};
+ await store.setSetting('agent',value);res.json(safeAgent(value));
+ }));
+ app.post('/api/agent/test',asyncRoute(async(_req,res)=>{
+ const before=await store.getSetting('agent'),result=await testAgent(store,config.encryptionKey,agentRequest?{request:agentRequest}:{});
+ const saved=await store.getSetting('agent');if(JSON.stringify(saved)!==JSON.stringify(before))return res.status(409).json({error:'配置已更新，请重新测试当前配置'});
+ await store.setSetting('agent',{...saved,lastTestAt:result.at});res.json(result);
  }));
  app.get('/api/agent/runs',asyncRoute(async(_req,res)=>res.json(await store.listRuns())));
  let agentRunning=false;
  app.post('/api/agent/run',asyncRoute(async(req,res)=>{
  if(agentRunning)return res.status(409).json({error:'Agent 正在整理，请等待本次完成'});
  const input=z.object({action:z.enum(['emails','keywords','project','custom']),site,prompt:z.string().max(10000).default(''),projectId:z.string().max(100).default('')}).parse(req.body);
- agentRunning=true;try{res.json(await runAgent(store,config.encryptionKey,input));}finally{agentRunning=false;}
+ agentRunning=true;try{res.json(await runAgent(store,config.encryptionKey,input,agentRequest?{request:agentRequest}:{}));}finally{agentRunning=false;}
  }));
  app.post('/api/agent/runs/:id/apply',asyncRoute(async(req,res)=>res.json(await store.applyRun(req.params.id))));
  app.use('/api',(_req,res)=>res.status(404).json({error:'接口不存在'}));
