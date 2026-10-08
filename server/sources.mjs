@@ -3,6 +3,7 @@ import { ImapFlow } from 'imapflow';
 import { simpleParser } from 'mailparser';
 import { unseal } from './security.mjs';
 import { requestJSON, resolvePublic } from './network.mjs';
+import {readHostingerSource} from './hostinger-mail.mjs';
 export const SYNC_INTERVAL=600000;
 const stable=(source,id)=>'src_'+createHash('sha256').update(source+':'+String(id)).digest('hex').slice(0,48);
 const text=(value,max=200000)=>typeof value==='string'?value.slice(0,max):value==null?'':JSON.stringify(value).slice(0,max);
@@ -60,7 +61,7 @@ async function readMail(source,secret) {
  finally{await client.logout().catch(()=>{});}
 }
 export function createSynchronizer(store,key,{reader}={}) {
- const read=reader||((s,secret)=>s.type==='imap'?readMail(s,secret):readApiSource(s,secret));let timer,stopping=false;
+ const read=reader||((s,secret)=>s.type==='imap'?readMail(s,secret):s.type==='hostinger'?readHostingerSource(s,secret):readApiSource(s,secret));let timer,stopping=false;
  async function syncOne(id,{force=false,testOnly=false,graceMs=0}={}) {
  const source=await store.getSource(id);if(!source)throw new Error('来源不存在');
  if(!source.enabled&&!testOnly)throw new Error('请先启用该来源');
@@ -69,7 +70,10 @@ export function createSynchronizer(store,key,{reader}={}) {
  const now=Date.now();
  try{
  const secret=source.secret?unseal(source.secret,key,source.id):'',result=await read(source,secret);
- if(!testOnly){for(const item of result.records)await store.upsertExternal(item);
+ if(!testOnly){for(const item of result.records){
+ if(source.type==='hostinger'){const existing=await store.get(item.id);if(existing?.content){item.content=existing.content;item.truncated=existing.truncated;}}
+ await store.upsertExternal(item);
+ }
  await store.finishSource(id,lease,{...result.state,lastAttempt:now,lastSuccess:now,error:'',count:result.records.length},now+SYNC_INTERVAL);}
  return {ok:true,count:result.records.length,message:testOnly?'连接成功，可读取 '+result.records.length+' 条内容':'已收取 '+result.records.length+' 条内容'};
  }catch(e){if(!testOnly)await store.finishSource(id,lease,{...source.state,lastAttempt:now,error:e.message},now+SYNC_INTERVAL);throw e;}

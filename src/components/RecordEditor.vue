@@ -23,13 +23,16 @@ function save(){emit('save',{...form,title:form.title.trim()});}
   <div v-if="kind==='keywords'" class="field-grid"><label>搜索意图<input v-model="form.intent" placeholder="采购、选型、学习…"></label><label>搜索量<input v-model="form.volume" placeholder="没有数据可留空"></label></div>
   <label v-if="['articles','resources','notes','keywords'].includes(kind)">链接<input v-model="form.url" type="url" placeholder="https://"><a v-if="safeLink(form.url)" :href="safeLink(form.url)" target="_blank" rel="noopener noreferrer" class="text-link">打开链接 ↗</a></label>
   <label>{{kind==='prompts'?'提示词模板':inquiry?'询盘原文':kind==='keywords'?'选词说明':kind==='tasks'?'备注':'内容'}}<textarea v-model="form.content" :readonly="!!record?.sourceId" :rows="kind==='tasks'?4:10" :placeholder="kind==='prompts'?'把提示词粘贴在这里，用 {{主题}} 等标记可替换的部分。':'填写内容或直接粘贴文本'"></textarea></label>
-  <p v-if="record?.truncated" class="hint">长邮件只保留前 256KB。附件及完整原文请在原邮箱查看。</p>
+  <p v-if="record?.truncated" class="hint">正文较长，当前内容已截断。附件及完整原文请在原邮箱查看。</p>
   <label v-if="record?.sourceId||inquiry">我的处理备注<textarea v-model="form.userNotes" rows="3" placeholder="记录你的判断和下一步，原文会保留。"></textarea></label>
   <div class="row-actions">
    <button v-if="inquiry&&record" type="button" class="button secondary" @click="emit('task',form)"><Icon name="plus" :size="16"/>加入待办</button>
    <button v-if="kind==='prompts'&&form.content" type="button" class="button secondary" @click="emit('copy',form.content)"><Icon name="copy" :size="16"/>复制模板</button>
+   <button v-if="record?.sourceId&&kind==='inquiries'&&record?.externalId?.startsWith('hostinger:')" type="button" class="button secondary" :disabled="busy" @click="emit('detail',record)">读取邮件正文</button>
+   <a v-if="inquiry&&safeLink(form.url)" :href="safeLink(form.url)" target="_blank" rel="noopener noreferrer" class="text-link">在原邮箱查看 ↗</a>
    <button v-if="record?.sourceId&&kind==='notes'" type="button" class="button secondary" :disabled="busy" @click="emit('detail',record)">获取完整笔记</button>
   </div>
+  <p v-if="record?.externalId?.startsWith('hostinger:')" class="hint">读取正文会在 Hostinger 邮箱标记为已读；审核归档只改变工作台记录。</p>
  </form>
  <template #footer>
   <div v-if="record?.id&&!record.sourceId" class="delete-actions"><button type="button" class="text-button danger-text" @click="confirmDelete=!confirmDelete">{{confirmDelete?'取消删除':'删除'}}</button><button v-if="confirmDelete" type="button" class="button danger" :disabled="busy" @click="emit('remove',record)">确认删除</button></div>

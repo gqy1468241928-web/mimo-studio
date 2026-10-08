@@ -60,11 +60,11 @@ async function updateStatus(record,status){
 }
 async function removeRecord(record){busy.value=true;try{await api('/records/'+record.id,{method:'DELETE',body:{version:record.version}});editor.value=null;await refresh();inform('已删除');}catch(e){handle(e);}finally{busy.value=false;}}
 function addTask(record){editor.value={record:null,kind:'tasks',category:''};editor.value.record={kind:'tasks',title:('跟进：'+record.title).slice(0,300),site:record.site,status:'todo',content:'来源：'+labels[record.kind]+' / '+record.id+'\n'+(record.sender||'')+'\n'+(record.userNotes||'')};}
-async function noteDetail(record){busy.value=true;try{const result=await api('/notes/'+record.id+'/detail',{method:'POST',body:{}});openRecord(result);inform('完整内容已获取');await reload();}catch(e){handle(e);}finally{busy.value=false;}}
+async function noteDetail(record){busy.value=true;try{const result=await api((record.kind==='inquiries'?'/mail/':'/notes/')+record.id+'/detail',{method:'POST',body:{}});openRecord(result);inform('完整内容已获取');await reload();}catch(e){handle(e);}finally{busy.value=false;}}
 async function copy(text){try{await navigator.clipboard.writeText(text);inform('已复制');}catch{inform('无法访问剪贴板，可直接选中文本复制',true);}}
 function newSource(){sourceEditor.value={source:null};}
 async function saveSource(value){busy.value=true;
- try{const result=await api('/sources',{method:'POST',body:value});sourceEditor.value=null;await loadSettings();inform('来源已保存，开始收取');
+ try{const result=await api('/sources',{method:'POST',body:value});sourceEditor.value=null;await loadSettings();inform(result.enabled?'来源已保存，开始收取':'配置已保存，自动收取已暂停');
  if(result.enabled)await sourceAction(result,'fetch');}
  catch(e){handle(e);}finally{busy.value=false;}
 }
@@ -138,7 +138,7 @@ onBeforeUnmount(()=>{clearInterval(pollTimer);clearTimeout(filterTimer);clearTim
     <header class="page-heading"><div><p class="eyebrow">SETTINGS</p><h1>设置</h1><p class="muted">连接信息来源，管理你的私人空间。</p></div></header>
     <section class="settings-section"><div class="subheading"><div><h2>信息来源</h2><p class="muted">每 10 分钟自动收取，关闭网页后继续运行。</p></div><button class="button primary" @click="newSource"><Icon name="plus" :size="17"/>添加来源</button></div>
      <div v-if="!sources.length" class="empty-source panel"><Icon name="mail" :size="25"/><div><strong>先接入一个邮箱或 API</strong><p>邮箱收进内容管理，笔记收进资源库。</p></div><button class="text-link" @click="newSource">添加第一个来源 →</button></div>
-     <article v-for="s in sources" :key="s.id" class="source-card panel"><div class="source-top"><div class="source-symbol"><Icon :name="s.type==='imap'?'mail':s.type==='get'?'library':'link'" :size="20"/></div><div class="source-info"><h3>{{s.name}}</h3><p>{{s.type==='imap'?s.config.user:s.type==='get'?'得到大脑 / 笔记':s.config.endpoint}}<span v-if="s.site"> · {{s.site}}</span></p></div><span :class="['source-status',{'failed':s.state?.error}]"><span class="status-dot"></span>{{!s.enabled?'已暂停':s.state?.error?'收取失败':s.state?.lastSuccess?'自动收取中':'等待首次收取'}}</span></div>
+     <article v-for="s in sources" :key="s.id" class="source-card panel"><div class="source-top"><div class="source-symbol"><Icon :name="['imap','hostinger'].includes(s.type)?'mail':s.type==='get'?'library':'link'" :size="20"/></div><div class="source-info"><h3>{{s.name}}</h3><p>{{['imap','hostinger'].includes(s.type)?s.config.user:s.type==='get'?'得到大脑 / 笔记':s.config.endpoint}}<span v-if="s.site"> · {{s.site}}</span></p></div><span :class="['source-status',{'failed':s.state?.error}]"><span class="status-dot"></span>{{!s.hasSecret&&s.type!=='api'?'待恢复密钥':!s.enabled?'已暂停':s.state?.error?'收取失败':s.state?.lastSuccess?'自动收取中':'等待首次收取'}}</span></div>
       <p v-if="s.state?.error" class="source-error">{{s.state.error}}</p><div class="source-bottom"><span class="hint">上次成功：{{displayDate(s.state?.lastSuccess)}}<span v-if="s.state?.count!==undefined"> · {{s.state.count}} 条</span></span><div class="row-actions"><button class="text-button" :disabled="busyId===s.id" @click="sourceAction(s,'test')">{{busyId===s.id?'处理中…':'测试连接'}}</button><button class="text-button" @click="sourceEditor={source:{...s}}">编辑</button><button class="text-button" @click="toggleSource(s)">{{s.enabled?'暂停':'启用'}}</button><button class="text-button" @click="sourceRemove=s.id">移除</button></div></div>
       <div v-if="sourceRemove===s.id" class="inline-confirm"><span>移除连接后，已有内容仍会保留。</span><button class="text-button" @click="sourceRemove=''">取消</button><button class="button danger" @click="deleteSource(s)">确认移除</button></div>
      </article>

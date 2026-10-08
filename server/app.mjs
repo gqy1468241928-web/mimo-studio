@@ -1,10 +1,11 @@
 import express from 'express';
 import {randomUUID} from 'node:crypto';
 import {z} from 'zod';
-import {seal,equal,signSession,verifySession,cookieValue,hashPassword,checkPassword,publicUrl} from './security.mjs';
+import {seal,unseal,equal,signSession,verifySession,cookieValue,hashPassword,checkPassword,publicUrl} from './security.mjs';
 import {runAgent} from './agent.mjs';
 import {getNoteDetail} from './sources.mjs';
 import {parseImport} from './import.mjs';
+import {hostingerMailboxes,validateHostingerConfig,readHostingerBody} from './hostinger-mail.mjs';
 export const kinds=['tasks','articles','inquiries','mic','keywords','resources','notes','prompts','projects'];
 const site=z.enum(['','apexcomponent.com','globalwellpcb.com']).default('');
 const small=z.string().max(500).default('');
@@ -15,8 +16,8 @@ const recordSchema=z.object({
  sender:small,company:small,country:small,userNotes:z.string().max(10000).default(''),category:small,tags:small,keyword:small,intent:small,volume:small,projectId:small,
  sourceId:z.string().max(100).optional(),externalId:small,messageId:small,receivedAt:small,truncated:z.boolean().optional(),reviewedAt:z.number().optional()
 });
-const sourceSchema=z.object({id:z.string().max(100).optional(),name:z.string().trim().min(1).max(100),type:z.enum(['imap','api','get']),site,enabled:z.boolean().default(true),secret:z.string().max(8192).optional(),
- config:z.object({host:z.string().max(255).optional(),user:z.string().max(300).optional(),folder:z.string().max(200).optional(),days:z.coerce.number().min(1).max(90).optional(),
+const sourceSchema=z.object({id:z.string().max(100).optional(),name:z.string().trim().min(1).max(100),type:z.enum(['imap','api','get','hostinger']),site,enabled:z.boolean().default(true),secret:z.string().max(8192).optional(),
+ config:z.object({mailboxId:z.string().regex(/^[A-Za-z0-9_-]{1,128}$/).optional(),host:z.string().max(255).optional(),user:z.string().max(300).optional(),folder:z.string().max(200).optional(),days:z.coerce.number().min(1).max(90).optional(),
  endpoint:z.string().max(2000).optional(),headerName:z.string().regex(/^[A-Za-z0-9-]{1,80}$/).optional(),authMode:z.enum(['raw','bearer']).optional(),clientId:z.string().max(500).optional(),
  listPath:z.string().max(100).optional(),idField:z.string().max(100).optional(),titleField:z.string().max(100).optional(),contentField:z.string().max(100).optional(),senderField:z.string().max(100).optional(),urlField:z.string().max(100).optional(),dateField:z.string().max(100).optional(),kind:z.enum(kinds).optional()}).default({})
 });
@@ -108,6 +109,19 @@ export async function createApp({store,config,synchronizer,publicDir}){
  const rows=parseImport(input),valid=rows.map(row=>recordSchema.parse({...row,volume:String(row.volume||'')}));
  for(const row of valid)await store.upsertExternal(row);res.json({count:valid.length});
  }));
+ app.post('/api/hostinger/mailboxes',asyncRoute(async(req,res)=>{
+ const input=z.object({sourceId:z.string().max(100).optional(),secret:z.string().max(8192).optional()}).parse(req.body);
+ const saved=input.sourceId?await store.getSource(input.sourceId):null;
+ if(input.sourceId&&saved?.type!=='hostinger')return res.status(404).json({error:'Hostinger 来源不存在'});
+ const secret=input.secret|| (saved?.secret?unseal(saved.secret,config.encryptionKey,saved.id):'');
+ res.json(await hostingerMailboxes(secret));
+ }));
+ app.post('/api/mail/:id/detail',asyncRoute(async(req,res)=>{
+ const item=await store.get(req.params.id),source=item?.sourceId?await store.getSource(item.sourceId):null;
+ if(item?.kind!=='inquiries'||source?.type!=='hostinger')return res.status(400).json({error:'这条记录不是 Hostinger 邮件'});
+ const detail=await readHostingerBody(source,unseal(source.secret,config.encryptionKey,source.id),item.externalId);
+ res.json(await store.save({...item,...detail},item.version));
+ }));
  app.get('/api/sources',asyncRoute(async(_req,res)=>res.json((await store.listSources()).map(safeSource))));
  app.post('/api/sources',asyncRoute(async(req,res)=>{
  const input=sourceSchema.parse(req.body),old=input.id?await store.getSource(input.id):null;
@@ -118,9 +132,10 @@ export async function createApp({store,config,synchronizer,publicDir}){
  publicUrl('https://'+input.config.host);
  }
  if(input.type==='api'){if(!input.config.endpoint)throw new Error('请填写 API 列表地址');publicUrl(input.config.endpoint);}
+ if(input.type==='hostinger')validateHostingerConfig(input);
  if(input.type==='get'&&!input.config.clientId)throw new Error('请填写得到大脑 Client ID');
  const secret=input.secret?seal(input.secret,config.encryptionKey,id):old?.secret||'';
- if(input.type!=='api'&&!secret)throw new Error('请填写授权码或 API Key');
+ if(input.type!=='api'&&input.enabled&&!secret)throw new Error('请填写授权码或 API Key');
  const value={...old,...input,id,secret,state:old?.state||{},nextRun:0};
  const saved=await store.saveSource(value);res.json(safeSource(saved));
  }));

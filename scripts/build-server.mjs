@@ -15,4 +15,7 @@ if(process.env.DB_NAME){
  // Express exposes only the public/ subdirectory. It is never part of source exports.
  await writeFile('dist/.env',keys.map(key=>key+'='+JSON.stringify(process.env[key])).join('\n')+'\n',{mode:0o600});
 }
+// LiteSpeed watches this marker when current switches to a new private build.
+await mkdir('dist/tmp',{recursive:true});
+await writeFile('dist/tmp/restart.txt',String(Date.now())+'\n');
 console.log('Self-contained Node runtime and background sync built');
