@@ -14,7 +14,7 @@ const initialContentTab=new URLSearchParams(location.hash.split('?')[1]||'').get
 const contentTab=ref(contentTabs.some(t=>t[0]===initialContentTab)?initialContentTab:'articles'),resourceTab=ref('seo'),agentTab=ref('assistant'),todoTab=ref('todo'),siteFilter=ref(''),history=ref(false),search=ref(''),offset=ref(0);
 const authenticated=ref(false),checking=ref(true),password=ref(''),loginBusy=ref(false),loading=ref(false),busy=ref(false),busyId=ref(''),mobileOpen=ref(false);
 const notice=ref(null),records=ref([]),total=ref(0),sources=ref([]),projects=ref([]),runs=ref([]),editor=ref(null),sourceEditor=ref(null),importOpen=ref(false);
-const quickTitle=ref(''),sourceRemove=ref(''),agentRunning=ref(false),applying=ref('');
+const quickTitle=ref(''),sourceRemove=ref(''),agentRunning=ref(false),applying=ref(''),contentBusy=ref(false);
 const agentInput=ref({action:'emails',prompt:'',site:'',projectId:''});
 const agentConfig=ref({endpoint:'https://api.openai.com/v1',model:'',secret:'',hasSecret:false});
 const passwordForm=ref({currentPassword:'',password:''});
@@ -25,6 +25,8 @@ let pendingRecovery=new URLSearchParams(location.hash.split('?')[1]||'').get('re
 if(pendingRecovery)window.history.replaceState(null,'','#settings');
 const currentKind=computed(()=>page.value==='todo'?'tasks':page.value==='content'?contentTab.value:page.value==='library'?(['notes','prompts'].includes(resourceTab.value)?resourceTab.value:'resources'):'projects');
 const title=computed(()=>nav.find(n=>n[0]===page.value)?.[1]||'待办');
+const contentSources=computed(()=>sources.value.filter(s=>(!siteFilter.value||s.site===siteFilter.value)).filter(s=>currentKind.value==='articles'?(s.type==='wordpress'||s.type==='api'&&s.config.kind==='articles'):(['imap','hostinger'].includes(s.type)||s.type==='api'&&(s.config.kind||'inquiries')==='inquiries')));
+const latestContentSync=computed(()=>Math.max(0,...contentSources.value.map(s=>Number(s.state?.lastSuccess||0))));
 const inquiry=computed(()=>['inquiries','mic'].includes(currentKind.value));
 const addLabel=computed(()=>page.value==='library'?resourceTabs.find(r=>r[0]===resourceTab.value)?.[1]:labels[currentKind.value]);
 const showList=computed(()=>['todo','content','library'].includes(page.value)||page.value==='agent'&&agentTab.value==='projects');
@@ -33,6 +35,8 @@ function handle(error){if(error.status===401){authenticated.value=false;password
 async function login(){loginBusy.value=true;try{await api('/auth/login',{method:'POST',body:{password:password.value}});password.value='';authenticated.value=true;notice.value=null;await refresh();await openRestoredSource();}catch(e){handle(e);}finally{loginBusy.value=false;}}
 async function logout(){try{await api('/auth/logout',{method:'POST',body:{}});}catch{}authenticated.value=false;records.value=[];sources.value=[];runs.value=[];}
 function navigate(value){page.value=value;location.hash=value;mobileOpen.value=false;search.value='';history.value=false;}
+function syncHash(){const [key,query]=location.hash.slice(1).split('?');if(nav.some(n=>n[0]===key))page.value=key;if(key==='content'){const tab=new URLSearchParams(query||'').get('tab');if(contentTabs.some(t=>t[0]===tab))contentTab.value=tab;}}
+async function syncContent(){contentBusy.value=true;try{const result=await api('/content/sync',{method:'POST',body:{kind:currentKind.value,site:siteFilter.value}}),failed=result.results.filter(r=>r.ok===false),count=result.results.reduce((n,r)=>n+(r.count||0),0);if(failed.length)inform(failed[0].message,true);else inform(result.results.some(r=>r.skipped)?'正在收取，请稍后查看列表':'已读取 '+count+' 条内容');await refresh();}catch(e){handle(e);}finally{contentBusy.value=false;}}
 function chooseContent(value){contentTab.value=value;history.value=false;search.value='';window.history.replaceState(null,'','#content?tab='+encodeURIComponent(value));}
 function chooseResource(value){resourceTab.value=value;search.value='';history.value=false;}
 async function reload(quiet=false){
@@ -46,7 +50,7 @@ async function reload(quiet=false){
  catch(e){handle(e);}finally{if(token===loadToken)loading.value=false;}
 }
 async function loadSettings(){sources.value=await api('/sources');const config=await api('/agent/config');agentConfig.value={...config,secret:''};}
-async function refresh(){try{const p=await api('/records?kind=projects&limit=100');projects.value=p.items;if(page.value==='settings')await loadSettings();if(page.value==='agent'){runs.value=await api('/agent/runs');const config=await api('/agent/config');agentConfig.value={...config,secret:''};}await reload();}catch(e){handle(e);}}
+async function refresh(){try{const p=await api('/records?kind=projects&limit=100');projects.value=p.items;if(page.value==='settings')await loadSettings();if(page.value==='content')sources.value=await api('/sources');if(page.value==='agent'){runs.value=await api('/agent/runs');const config=await api('/agent/config');agentConfig.value={...config,secret:''};}await reload();}catch(e){handle(e);}}
 watch([page,contentTab,resourceTab,siteFilter,history,todoTab,agentTab,search],()=>{offset.value=0;clearTimeout(filterTimer);filterTimer=setTimeout(()=>refresh(),180);});
 async function paginate(direction){offset.value=Math.max(0,offset.value+direction*50);await reload();}
 function openNew(){editor.value={record:null,kind:currentKind.value,category:page.value==='library'?resourceTab.value:''};}
@@ -102,10 +106,10 @@ async function importRecords(){busy.value=true;try{const result=await api('/impo
 async function backup(){try{const data=await api('/backup');const url=URL.createObjectURL(new Blob([JSON.stringify(data,null,2)],{type:'application/json'}));const a=document.createElement('a');a.href=url;a.download='mimo-backup-'+new Date().toISOString().slice(0,10)+'.json';a.click();setTimeout(()=>URL.revokeObjectURL(url),1000);}catch(e){handle(e);}}
 function openBackupImport(){importForm.value={text:'',format:'json',name:''};importOpen.value=true;}
 async function restoreBackup(){busy.value=true;try{const result=await api('/import',{method:'POST',body:{text:importForm.value.text,format:'json',site:''}});importOpen.value=false;inform('已恢复 '+result.count+' 条内容');await refresh();}catch(e){handle(e);}finally{busy.value=false;}}
-onMounted(async()=>{try{authenticated.value=(await api('/auth/session')).authenticated;if(authenticated.value){await refresh();await openRestoredSource();}}catch(e){handle(e);}finally{checking.value=false;}
- pollTimer=setInterval(()=>{if(authenticated.value&&!document.hidden&&!busy.value){reload(true);if(page.value==='settings')api('/sources').then(s=>sources.value=s).catch(()=>{});}},60000);
+onMounted(async()=>{window.addEventListener('hashchange',syncHash);try{authenticated.value=(await api('/auth/session')).authenticated;if(authenticated.value){await refresh();await openRestoredSource();}}catch(e){handle(e);}finally{checking.value=false;}
+ pollTimer=setInterval(()=>{if(authenticated.value&&!document.hidden&&!busy.value){reload(true);if(['settings','content'].includes(page.value))api('/sources').then(s=>sources.value=s).catch(()=>{});}},15000);
 });
-onBeforeUnmount(()=>{clearInterval(pollTimer);clearTimeout(filterTimer);clearTimeout(noticeTimer);});
+onBeforeUnmount(()=>{window.removeEventListener('hashchange',syncHash);clearInterval(pollTimer);clearTimeout(filterTimer);clearTimeout(noticeTimer);});
 </script>
 <template>
 <div v-if="checking" class="boot-state">正在打开工作台…</div>
@@ -139,6 +143,7 @@ onBeforeUnmount(()=>{clearInterval(pollTimer);clearTimeout(filterTimer);clearTim
      <template v-else><button v-for="t in resourceTabs" :key="t[0]" :class="{selected:resourceTab===t[0]}" role="tab" :aria-selected="resourceTab===t[0]" @click="chooseResource(t[0])">{{t[1]}}</button></template>
     </div>
     <div class="list-toolbar"><div class="search-field"><Icon name="search" :size="17"/><input v-model="search" :aria-label="'搜索'+addLabel" :placeholder="'搜索'+addLabel"></div><select v-model="siteFilter" aria-label="按网站筛选"><option v-for="s in sites" :key="s.value" :value="s.value">{{s.label}}</option></select><button v-if="['mic','keywords','backlinks','articles','notes','prompts','resources'].includes(currentKind)" class="button secondary" @click="importForm={text:'',format:'csv',name:''};importOpen=true"><Icon name="upload" :size="16"/>导入</button></div>
+    <div v-if="['articles','inquiries'].includes(currentKind)" class="content-sync-row"><span v-if="contentSources.length">已配置 {{contentSources.length}} 个{{currentKind==='articles'?'文章来源':'邮箱来源'}} · {{contentSources.some(s=>s.enabled)?'每 10 分钟自动收取':'自动收取已暂停'}} · {{latestContentSync?'最近收取 '+displayDate(latestContentSync):'等待首次收取'}}{{currentKind==='articles'&&contentSources.some(s=>s.enabled&&s.state?.hasMore)?' · 正在补齐历史文章':''}}</span><span v-else>{{currentKind==='articles'?'尚未配置文章来源':'尚未接入邮箱'}}</span><button class="button secondary small" :disabled="contentBusy||!contentSources.some(s=>s.enabled)" @click="syncContent"><Icon name="refresh" :size="14"/>{{contentBusy?'正在收取…':currentKind==='articles'?'同步文章':'立即收取'}}</button></div>
     <div v-if="inquiry" class="inquiry-switch"><button :class="{selected:!history}" @click="history=false">待处理</button><button :class="{selected:history}" @click="history=true">历史记录</button><span>审核后移到历史，不会重复进入待处理。</span></div>
    </template>
    <template v-else-if="page==='agent'">
@@ -160,7 +165,7 @@ onBeforeUnmount(()=>{clearInterval(pollTimer);clearTimeout(filterTimer);clearTim
     <header class="page-heading"><div><p class="eyebrow">SETTINGS</p><h1>设置</h1><p class="muted">连接信息来源，管理你的私人空间。</p></div></header>
     <section class="settings-section"><div class="subheading"><div><h2>信息来源</h2><p class="muted">每 10 分钟自动收取，关闭网页后继续运行。</p></div><button class="button primary" @click="newSource"><Icon name="plus" :size="17"/>添加来源</button></div>
      <div v-if="!sources.length" class="empty-source panel"><Icon name="mail" :size="25"/><div><strong>先接入一个邮箱或 API</strong><p>邮箱收进内容管理，笔记收进资源库。</p></div><button class="text-link" @click="newSource">添加第一个来源 →</button></div>
-     <article v-for="s in sources" :key="s.id" class="source-card panel"><div class="source-top"><div class="source-symbol"><Icon :name="['imap','hostinger'].includes(s.type)?'mail':s.type==='get'?'library':'link'" :size="20"/></div><div class="source-info"><h3>{{s.name}}</h3><p>{{['imap','hostinger'].includes(s.type)?s.config.user:s.type==='get'?'得到大脑 / 笔记':s.config.endpoint}}<span v-if="s.site"> · {{s.site}}</span></p></div><span :class="['source-status',{'failed':s.state?.error}]"><span class="status-dot"></span>{{!s.hasSecret&&s.type!=='api'?'待恢复密钥':!s.enabled?'已暂停':s.state?.error?'收取失败':s.state?.lastSuccess?'自动收取中':'等待首次收取'}}</span></div>
+     <article v-for="s in sources" :key="s.id" class="source-card panel"><div class="source-top"><div class="source-symbol"><Icon :name="['imap','hostinger'].includes(s.type)?'mail':s.type==='wordpress'?'content':s.type==='get'?'library':'link'" :size="20"/></div><div class="source-info"><h3>{{s.name}}</h3><p>{{['imap','hostinger'].includes(s.type)?s.config.user:s.type==='get'?'得到大脑 / 笔记':s.type==='wordpress'?s.config.origin:s.config.endpoint}}<span v-if="s.site"> · {{s.site}}</span></p></div><span :class="['source-status',{'failed':s.state?.error}]"><span class="status-dot"></span>{{!s.hasSecret&&!['api','wordpress'].includes(s.type)?'待恢复密钥':!s.enabled?'已暂停':s.state?.error?'收取失败':s.state?.lastSuccess?'自动收取中':'等待首次收取'}}</span></div>
       <p v-if="s.state?.error" class="source-error">{{s.state.error}}</p><div class="source-bottom"><span class="hint">上次成功：{{displayDate(s.state?.lastSuccess)}}<span v-if="s.state?.count!==undefined"> · {{s.state.count}} 条</span></span><div class="row-actions"><button class="text-button" :disabled="busyId===s.id" @click="sourceAction(s,'test')">{{busyId===s.id?'处理中…':'测试连接'}}</button><button class="text-button" @click="sourceEditor={source:{...s}}">编辑</button><button class="text-button" @click="toggleSource(s)">{{s.enabled?'暂停':'启用'}}</button><button class="text-button" @click="sourceRemove=s.id">移除</button></div></div>
       <div v-if="sourceRemove===s.id" class="inline-confirm"><span>移除连接后，已有内容仍会保留。</span><button class="text-button" @click="sourceRemove=''">取消</button><button class="button danger" @click="deleteSource(s)">确认移除</button></div>
      </article>

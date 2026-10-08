@@ -7,6 +7,7 @@ import {runAgent} from './agent.mjs';
 import {getNoteDetail} from './sources.mjs';
 import {parseImport} from './import.mjs';
 import {hostingerMailboxes,validateHostingerConfig,readHostingerBody} from './hostinger-mail.mjs';
+import {validateWordPressSource} from './wordpress.mjs';
 export const kinds=['tasks','articles','inquiries','mic','keywords','backlinks','resources','notes','prompts','projects'];
 const site=z.enum(['','apexcomponent.com','globalwellpcb.com']).default('');
 const small=z.string().max(500).default('');
@@ -15,15 +16,15 @@ const recordSchema=z.object({
  status:z.enum(['todo','done','new','draft','writing','published','following','archived']).default('new'),
  content:z.string().max(200000).default(''),due:z.string().max(20).default(''),url:z.string().max(2000).default(''),
  sender:small,company:small,country:small,userNotes:z.string().max(10000).default(''),category:small,tags:small,keyword:small,intent:small,volume:small,projectId:small,
- contact:small,outreachSent:z.boolean().default(false),feeStatus:z.enum(['unknown','free','paid']).default('unknown'),
+ publishedAt:small,modifiedAt:small,contact:small,outreachSent:z.boolean().default(false),feeStatus:z.enum(['unknown','free','paid']).default('unknown'),
  sourceId:z.string().max(100).optional(),externalId:small,messageId:small,receivedAt:small,truncated:z.boolean().optional(),reviewedAt:z.number().optional()
 }).superRefine((record,ctx)=>{
  if(record.kind!=='backlinks')return;
  if(!['new','done'].includes(record.status))ctx.addIssue({code:'custom',path:['status'],message:'外链发送内容状态请选择未完成或已完成'});
  if(record.url)try{const url=new URL(record.url);if(!['https:','http:'].includes(url.protocol)||url.username||url.password)throw new Error();}catch{ctx.addIssue({code:'custom',path:['url'],message:'外链网站地址请填写有效的 HTTP 或 HTTPS 链接'});}
 });
-const sourceSchema=z.object({id:z.string().max(100).optional(),name:z.string().trim().min(1).max(100),type:z.enum(['imap','api','get','hostinger']),site,enabled:z.boolean().default(true),secret:z.string().max(8192).optional(),
- config:z.object({mailboxId:z.string().regex(/^[A-Za-z0-9_-]{1,128}$/).optional(),host:z.string().max(255).optional(),user:z.string().max(300).optional(),folder:z.string().max(200).optional(),days:z.coerce.number().min(1).max(90).optional(),
+const sourceSchema=z.object({id:z.string().max(100).optional(),name:z.string().trim().min(1).max(100),type:z.enum(['imap','api','get','hostinger','wordpress']),site,enabled:z.boolean().default(true),secret:z.string().max(8192).optional(),
+ config:z.object({origin:z.enum(['https://apexcomponent.com','https://globalwellpcb.com']).optional(),mailboxId:z.string().regex(/^[A-Za-z0-9_-]{1,128}$/).optional(),host:z.string().max(255).optional(),user:z.string().max(300).optional(),folder:z.string().max(200).optional(),days:z.coerce.number().min(1).max(90).optional(),
  endpoint:z.string().max(2000).optional(),headerName:z.string().regex(/^[A-Za-z0-9-]{1,80}$/).optional(),authMode:z.enum(['raw','bearer']).optional(),clientId:z.string().max(500).optional(),
  listPath:z.string().max(100).optional(),idField:z.string().max(100).optional(),titleField:z.string().max(100).optional(),contentField:z.string().max(100).optional(),senderField:z.string().max(100).optional(),urlField:z.string().max(100).optional(),dateField:z.string().max(100).optional(),kind:z.enum(kinds).optional()}).default({})
 });
@@ -158,6 +159,13 @@ export async function createApp({store,config,synchronizer,publicDir}){
  const rows=parseImport(input),valid=rows.map(row=>recordSchema.parse({...row,volume:String(row.volume||'')}));
  for(const row of valid)await store.upsertExternal(row);res.json({count:valid.length});
  }));
+ app.post('/api/content/sync',asyncRoute(async(req,res)=>{
+ const input=z.object({kind:z.enum(['articles','inquiries']),site}).parse(req.body),sources=await store.listSources();
+ const selected=sources.filter(s=>s.enabled&&(!input.site||s.site===input.site)&&(input.kind==='articles'?(s.type==='wordpress'||s.type==='api'&&s.config.kind==='articles'):(['imap','hostinger'].includes(s.type)||s.type==='api'&&(s.config.kind||'inquiries')==='inquiries')));
+ if(!selected.length)throw new Error(input.kind==='articles'?'请先添加文章来源':'请先接入邮箱');
+ const results=[];for(const source of selected)try{results.push({id:source.id,...await synchronizer.syncOne(source.id,{force:true})});}catch(e){results.push({id:source.id,ok:false,message:e.message});}
+ res.json({results});
+ }));
  app.post('/api/hostinger/mailboxes',asyncRoute(async(req,res)=>{
  const input=z.object({sourceId:z.string().max(100).optional(),secret:z.string().max(8192).optional()}).parse(req.body);
  const saved=input.sourceId?await store.getSource(input.sourceId):null;
@@ -182,9 +190,10 @@ export async function createApp({store,config,synchronizer,publicDir}){
  }
  if(input.type==='api'){if(!input.config.endpoint)throw new Error('请填写 API 列表地址');publicUrl(input.config.endpoint);}
  if(input.type==='hostinger')validateHostingerConfig(input);
+ if(input.type==='wordpress')validateWordPressSource(input);
  if(input.type==='get'&&!input.config.clientId)throw new Error('请填写得到大脑 Client ID');
  const secret=input.secret?seal(input.secret,config.encryptionKey,id):old?.secret||'';
- if(input.type!=='api'&&input.enabled&&!secret)throw new Error('请填写授权码或 API Key');
+ if(!['api','wordpress'].includes(input.type)&&input.enabled&&!secret)throw new Error('请填写授权码或 API Key');
  const value={...old,...input,id,secret,state:old?.state||{},nextRun:0};
  const saved=await store.saveSource(value);res.json(safeSource(saved));
  }));

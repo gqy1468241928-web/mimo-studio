@@ -3,12 +3,13 @@ import {reactive,ref} from 'vue';
 import Modal from './Modal.vue';
 import {sites,api} from '../api.js';
 const props=defineProps({source:Object,busy:Boolean}),emit=defineEmits(['close','save']);
-const form=reactive({name:'',type:'imap',site:'',enabled:true,secret:'',...props.source,secret:'',config:{host:'imap.qq.com',user:'',mailboxId:'',folder:'INBOX',days:14,listPath:'data.items',idField:'id',titleField:'title',contentField:'content',senderField:'sender',dateField:'created_at',urlField:'url',kind:'inquiries',authMode:'raw',headerName:'Authorization',endpoint:'',clientId:'',...props.source?.config}});
+const form=reactive({name:'',type:'imap',site:'',enabled:true,secret:'',...props.source,secret:'',config:{origin:'',host:'imap.qq.com',user:'',mailboxId:'',folder:'INBOX',days:14,listPath:'data.items',idField:'id',titleField:'title',contentField:'content',senderField:'sender',dateField:'created_at',urlField:'url',kind:'inquiries',authMode:'raw',headerName:'Authorization',endpoint:'',clientId:'',...props.source?.config}});
 const preset=ref(props.source?'custom':'qq'),discovering=ref(false),connectionError=ref('');
 const mailboxes=ref(form.config.mailboxId&&form.config.user?[{id:form.config.mailboxId,address:form.config.user}]:[]);
 const providers={qq:['QQ 邮箱','imap.qq.com'],163:['网易 163','imap.163.com'],126:['网易 126','imap.126.com'],gmail:['Gmail','imap.gmail.com'],hostinger:['Hostinger IMAP','imap.hostinger.com'],custom:['其他 IMAP 邮箱','']};
 function changePreset(){const p=providers[preset.value];form.config.host=p[1];if(!props.source)form.name=p[0];}
-function changeType(){if(!props.source)form.name=form.type==='get'?'得到大脑':form.type==='hostinger'?'Hostinger 邮箱':form.type==='api'?'API 来源':'';if(form.type==='get'){form.config.listPath='data.notes';form.config.idField='note_id';}}
+function selectWebsite(){if(form.type==='wordpress'){form.site||='apexcomponent.com';form.config.origin='https://'+form.site;if(!props.source)form.name=(form.site==='apexcomponent.com'?'ApexComponent':'GlobalWellPCB')+' · 网站文章';}}
+function changeType(){if(!props.source)form.name=form.type==='get'?'得到大脑':form.type==='hostinger'?'Hostinger 邮箱':form.type==='api'?'API 来源':'';if(form.type==='wordpress')selectWebsite();if(form.type==='get'){form.config.listPath='data.notes';form.config.idField='note_id';}}
 function selectMailbox(){form.config.user=mailboxes.value.find(x=>x.id===form.config.mailboxId)?.address||'';}
 async function discoverMailboxes(){discovering.value=true;connectionError.value='';try{mailboxes.value=await api('/hostinger/mailboxes',{method:'POST',body:{sourceId:form.id,secret:form.secret||undefined}});if(!mailboxes.value.some(x=>x.id===form.config.mailboxId))form.config.mailboxId=mailboxes.value[0]?.id||'';selectMailbox();}catch(e){connectionError.value=e.message;}finally{discovering.value=false;}}
 function save(){emit('save',{id:form.id,name:form.name,type:form.type,site:form.site,enabled:form.enabled,secret:form.secret||undefined,config:{...form.config}});}
@@ -16,10 +17,10 @@ function save(){emit('save',{id:form.id,name:form.name,type:form.type,site:form.
 <template>
 <Modal :title="source?.restoreDraft?'恢复已保存的来源':source?.id?'编辑来源':'添加信息来源'" @close="emit('close')">
  <form id="source-form" class="stack" @submit.prevent="save">
-  <label>来源类型<select v-model="form.type" :disabled="!!source" @change="changeType"><option value="imap">IMAP 邮箱</option><option value="hostinger">Hostinger 邮箱（API）</option><option value="get">得到大脑（Get 笔记）</option><option value="api">自定义 API</option></select></label>
+  <label>来源类型<select v-model="form.type" :disabled="!!source" @change="changeType"><option value="imap">IMAP 邮箱</option><option value="hostinger">Hostinger 邮箱（API）</option><option value="get">得到大脑（Get 笔记）</option><option value="wordpress">WordPress 网站文章</option><option value="api">自定义 API</option></select></label>
   <label v-if="form.type==='imap'">邮箱服务商<select v-model="preset" @change="changePreset"><option v-for="(p,key) in providers" :key="key" :value="key">{{p[0]}}</option></select></label>
   <label>名称<input v-model="form.name" required maxlength="100" placeholder="例如 Apex 询盘邮箱"></label>
-  <label>关联网站<select v-model="form.site"><option value="">不指定网站</option><option v-for="s in sites.slice(1)" :key="s.value" :value="s.value">{{s.label}}</option></select></label>
+  <label>关联网站<select v-model="form.site" @change="selectWebsite"><option v-if="form.type!=='wordpress'" value="">不指定网站</option><option v-for="s in sites.slice(1)" :key="s.value" :value="s.value">{{s.label}}</option></select></label>
   <template v-if="form.type==='imap'">
    <label>邮箱地址<input v-model="form.config.user" type="email" required autocomplete="off" placeholder="name@example.com"></label>
    <label>IMAP 主机<input v-model="form.config.host" required placeholder="imap.example.com"></label>
@@ -40,6 +41,7 @@ function save(){emit('save',{id:form.id,name:form.name,type:form.type,site:form.
    <label>API Key<input v-model="form.secret" type="password" autocomplete="new-password" :required="form.enabled&&!source?.hasSecret" :placeholder="source?.hasSecret?'留空保留已保存的密钥':'gk_live_…'"></label>
    <p class="hint">使用同一应用的 Client ID 与 API Key，应用需有 note.content.read 读取权限。笔记收进“资源库 → 笔记”。</p><a class="text-link" href="https://doc.biji.com/docs/WOxgwObNNiyMHWk1dl0cJqSxnEd" target="_blank" rel="noopener noreferrer">查看官方说明 ↗</a>
   </template>
+  <template v-else-if="form.type==='wordpress'"><p class="hint">读取所选网站公开发布的文章，标题、正文、原文链接与发布时间进入“内容管理 → 网站文章”。</p><label>文章来源<input :value="form.config.origin+'/wp-json/wp/v2/posts'" readonly></label></template>
   <template v-else>
    <label>列表接口地址<input v-model="form.config.endpoint" type="url" required placeholder="https://api.example.com/items"></label>
    <label>API Key（公开接口可留空）<input v-model="form.secret" type="password" autocomplete="new-password" :placeholder="source?.hasSecret?'留空保留已保存的密钥':'填写访问密钥'"></label>

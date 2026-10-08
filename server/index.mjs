@@ -4,6 +4,7 @@ import {fileURLToPath} from 'node:url';
 import {openStore} from './db.mjs';
 import {createApp} from './app.mjs';
 import {createSynchronizer} from './sources.mjs';
+import {ensureWebsiteSources} from './wordpress.mjs';
 import {hashPassword} from './security.mjs';
 const bootstrapDir=path.dirname(fileURLToPath(import.meta.url));
 if(fs.existsSync(path.join(bootstrapDir,'.env')))process.loadEnvFile(path.join(bootstrapDir,'.env'));
@@ -15,6 +16,7 @@ if(!/^[a-f0-9]{64}$/i.test(config.encryptionKey||'')||!config.sessionKey||config
 }
 if(production&&(!process.env.DB_NAME||!process.env.DB_USER||!process.env.DB_PASSWORD))throw new Error('必须设置 MySQL 数据库配置');
 const store=await openStore(production||process.env.DB_NAME?{}:{dialect:'sqlite',filename:process.env.SQLITE_FILE||path.resolve('workbench-dev.sqlite')});
+if(production)await ensureWebsiteSources(store);
 const synchronizer=createSynchronizer(store,config.encryptionKey);
 const here=path.dirname(fileURLToPath(import.meta.url)),publicDir=path.join(here,'public');
 const app=await createApp({store,config,synchronizer,publicDir:fs.existsSync(publicDir)?publicDir:undefined});

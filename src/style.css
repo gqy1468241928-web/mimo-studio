@@ -16,3 +16,5 @@
 @media(prefers-reduced-motion:reduce){*{transition:none!important;scroll-behavior:auto!important}}
 
 .backlink-tracking{display:flex;flex-wrap:wrap;gap:6px}.backlink-tracking .status-chip{white-space:nowrap;color:#66735e}.backlink-tracking .is-sent,.backlink-tracking .is-complete{background:#e4f0e6;color:#2d6d50}.backlink-tracking .is-paid{background:#f5eddd;color:#88631f}
+
+.content-sync-row{display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:10px;color:#87947f;font-size:11px;margin:0 0 18px}.content-sync-row .button{flex-shrink:0}

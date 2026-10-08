@@ -45,3 +45,13 @@ test('a scheduled tick tolerates minor clock drift without doubling the sync int
  assert.ok(await s.claimSource('drift',600990,false,60000));
  await s.close();
 });
+
+test('article and email pagination keeps the newest source content first even when older records are fetched later',async()=>{
+ const s=await open();
+ try{for(const kind of ['articles','inquiries']){
+  const dateField=kind==='articles'?'publishedAt':'receivedAt';
+  await s.upsertExternal(record('z-new-'+kind,kind,{status:'new',[dateField]:'2026-10-08T00:00:00.000Z'}));
+  await s.upsertExternal(record('a-old-'+kind,kind,{status:'new',[dateField]:'2026-09-01T00:00:00.000Z'}));
+  const page=await s.list(kind,{limit:1});assert.equal(page.total,2);assert.equal(page.items[0].id,'z-new-'+kind);
+ }}finally{await s.close();}
+});

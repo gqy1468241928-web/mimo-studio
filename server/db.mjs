@@ -31,7 +31,8 @@ export async function openStore(options={}) {
  async function save(record,expectedVersion) {
   const old=await get(record.id),now=Date.now();
   if(old&&Number(expectedVersion)!==old.version||!old&&Number(expectedVersion)!==0)throw Object.assign(new Error('这条内容已更新，请刷新后再保存'),{status:409});
-  const value={...record,version:old?old.version+1:1,createdAt:old?.createdAt||now,updatedAt:now};
+  const dated=['articles','inquiries'].includes(record.kind),sourceTime=dated?Date.parse(record.kind==='articles'?(record.publishedAt||record.receivedAt):record.receivedAt):NaN;
+  const value={...record,...(dated?{sourceTimestamp:Number.isFinite(sourceTime)?sourceTime:now}:{}),version:old?old.version+1:1,createdAt:old?.createdAt||now,updatedAt:now};
   const params=[value.kind,value.site||'',value.status||'new',value.title||'',JSON.stringify(value),value.version,value.updatedAt];
   if(old){const result=await query('UPDATE wb_records SET kind=?,site=?,status=?,title=?,payload=?,version=?,updated_at=? WHERE id=? AND version=?',[...params,value.id,old.version]);if(!result.affectedRows)throw Object.assign(new Error('这条内容已更新，请刷新后再保存'),{status:409});}
   else await query('INSERT INTO wb_records (kind,site,status,title,payload,version,updated_at,id,created_at) VALUES (?,?,?,?,?,?,?,?,?)',[...params,value.id,value.createdAt]);
@@ -51,7 +52,9 @@ export async function openStore(options={}) {
    const where=conditions.join(' AND '),total=Number((await query('SELECT COUNT(*) AS n FROM wb_records WHERE '+where,params))[0].n);
    // Limits are bounded integers interpolated for compatible mysql prepared statements.
    const size=Math.max(1,Math.min(100,Number(limit)||50)),skip=Math.max(0,Math.floor(Number(offset)||0));
-   const rows=await query('SELECT * FROM wb_records WHERE '+where+' ORDER BY updated_at DESC,id ASC LIMIT '+Math.floor(size)+' OFFSET '+skip,params);
+   const sourceSort=sqlite?"CAST(json_extract(payload,'$.sourceTimestamp') AS INTEGER)":"CAST(JSON_UNQUOTE(JSON_EXTRACT(payload,'$.sourceTimestamp')) AS SIGNED)";
+   const order=['articles','inquiries'].includes(kind)?'COALESCE('+sourceSort+',updated_at) DESC,updated_at DESC,id ASC':'updated_at DESC,id ASC';
+   const rows=await query('SELECT * FROM wb_records WHERE '+where+' ORDER BY '+order+' LIMIT '+Math.floor(size)+' OFFSET '+skip,params);
    return {items:rows.map(unpack),total,limit:size,offset:skip};
   }),
   remove:(id,version)=>lock(async()=>{const result=await query('DELETE FROM wb_records WHERE id=? AND version=?',[id,Number(version)]);if(!result.affectedRows)throw Object.assign(new Error('这条内容已更新，请刷新后再操作'),{status:409});}),
