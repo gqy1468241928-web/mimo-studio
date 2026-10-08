@@ -5,7 +5,7 @@ import Icon from './Icon.vue';
 import MailMeta from './MailMeta.vue';
 import {sites,labels,statusLabels,safeLink,feeStatusLabels,displayDate} from '../api.js';
 const props=defineProps({record:Object,kind:String,category:String,projects:Array,busy:Boolean,mailbox:String});
-const emit=defineEmits(['close','save','remove','task','detail','copy']);
+const emit=defineEmits(['close','save','remove','task','detail','copy','reply']);
 const form=reactive({title:'',kind:props.kind,site:'',status:props.kind==='tasks'?'todo':props.kind==='articles'?'draft':'new',content:'',due:'',url:'',sender:'',company:'',country:'',category:props.category||'',tags:'',keyword:'',intent:'',volume:'',contact:'',outreachSent:false,feeStatus:'unknown',userNotes:'',projectId:'',...props.record});
 const inquiry=computed(()=>['inquiries','mic'].includes(form.kind));
 const states=computed(()=>form.kind==='tasks'?['todo','done']:form.kind==='articles'?['draft','writing','published']:form.kind==='backlinks'?['new','done']:form.kind==='projects'?['new','following','done']:inquiry.value?['new','following','archived']:['new']);
@@ -30,6 +30,7 @@ function save(){emit('save',{...form,title:form.title.trim()});}
   <p v-if="record?.truncated" class="hint">{{kind==='articles'?'正文较长，当前内容已截断。完整文章请打开原文链接查看。':'正文较长，当前内容已截断。附件及完整原文请在原邮箱查看。'}}</p>
   <label v-if="record?.sourceId||inquiry">我的处理备注<textarea v-model="form.userNotes" rows="3" placeholder="记录你的判断和下一步，原文会保留。"></textarea></label>
   <div class="row-actions">
+   <button v-if="inquiry&&record?.id" type="button" class="button secondary" :disabled="busy" @click="emit('reply',record)"><Icon name="agent" :size="16"/>知识库回复</button>
    <button v-if="inquiry&&record" type="button" class="button secondary" @click="emit('task',form)"><Icon name="plus" :size="16"/>加入待办</button>
    <button v-if="['prompts','backlinks'].includes(kind)&&form.content" type="button" class="button secondary" @click="emit('copy',form.content)"><Icon name="copy" :size="16"/>{{kind==='backlinks'?'复制信息':'复制模板'}}</button>
    <button v-if="record?.sourceId&&kind==='inquiries'&&record?.externalId?.startsWith('hostinger:')" type="button" class="button secondary" :disabled="busy" @click="emit('detail',record)">读取邮件正文</button>

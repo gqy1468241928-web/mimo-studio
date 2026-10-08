@@ -26,7 +26,7 @@ export async function requestJSON(input,{method='GET',headers={},body,timeout=30
     if(res.statusCode<200||res.statusCode>=300){res.resume();return finish(Object.assign(new Error('接口返回 HTTP '+res.statusCode+(res.statusCode===401?'，请检查密钥或授权':res.statusCode===403?'，请检查应用读取权限':'')),{statusCode:res.statusCode}));}
     const parts=[];let count=0;
     res.on('data',part=>{count+=part.length;if(count>maxBytes){finish(new Error('接口数据超过大小限制'));req.destroy();}else parts.push(part);});
-    res.on('end',()=>{try{const json=JSON.parse(Buffer.concat(parts).toString('utf8'));finish(null,metadata?{json,headers:res.headers}:json);}catch{finish(new Error('接口没有返回有效 JSON'));}});
+    res.on('end',()=>{try{const json=res.statusCode===204?null:JSON.parse(Buffer.concat(parts).toString('utf8'));finish(null,metadata?{json,headers:res.headers}:json);}catch{finish(new Error('接口没有返回有效 JSON'));}});
     res.on('error',()=>finish(fail('读取接口响应失败','NETWORK_ERROR')));
    });}catch{finish(fail('无法连接接口，请检查地址及网络','NETWORK_ERROR'));return;}
    req.on('socket',socket=>{if(!socket.connecting)clearTimeout(connecting);else socket.once('secureConnect',()=>clearTimeout(connecting));});

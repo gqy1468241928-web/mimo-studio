@@ -65,3 +65,20 @@ export async function readHostingerBody(source,token,externalId,options={}){
  const content=hide(data.text||htmlText(data.html||''),token);
  return {content:content.slice(0,160000),truncated:content.length>160000};
 }
+
+export async function sendHostingerReply(source,token,externalId,message,{request=requestJSON,beforeSend}={}) {
+ const cfg=validateHostingerConfig(source),prefix='hostinger:'+cfg.mailboxId+':'+encodeURIComponent(cfg.folder)+':';
+ const uid=typeof externalId==='string'&&externalId.startsWith(prefix)?externalId.slice(prefix.length):'';
+ if(!/^[1-9]\d*$/.test(uid)||!Number.isSafeInteger(Number(uid)))throw new Error('所选邮件不在当前邮箱范围内');
+ if(typeof message.to!=='string'||! /^[^\s@,;<>]+@[^\s@,;<>]+\.[^\s@,;<>]+$/.test(message.to)||/[\r\n]/.test(message.to))throw new Error('收件人格式无效');
+ if(typeof message.subject!=='string'||!message.subject.trim()||message.subject.length>500||/[\r\n]/.test(message.subject))throw new Error('邮件主题格式无效');
+ if(typeof message.body!=='string'||!message.body.trim()||message.body.length>20000)throw new Error('回复正文格式无效');
+ let started=false;
+ try {
+  await authorized(source,token,{request});
+  if(beforeSend)await beforeSend();
+  started=true;
+  await request(base+'/mailboxes/'+cfg.mailboxId+'/send',{method:'POST',headers:{Authorization:'Bearer '+checkedToken(token),Accept:'application/json'},timeout:45000,body:{to:[message.to],subject:message.subject,text:message.body,inReplyTo:{uid:Number(uid),folder:cfg.folder}}});
+  return {accepted:true};
+ }catch(error){throw Object.assign(new Error(started?'邮件发送未得到明确结果，请先在原邮箱已发送文件夹核对':'未发送邮件，请检查邮箱授权或自动回复规则'),{noSend:!started,statusCode:error.statusCode});}
+}

@@ -1,12 +1,18 @@
 <script setup>
 import {ref,computed,watch,onMounted,onBeforeUnmount} from 'vue';
-import {api,sites,labels,statusLabels,displayDate,safeLink,feeStatusLabels,isUnreadMail} from './api.js';
+import {api,sites,labels,statusLabels,displayDate,safeLink,feeStatusLabels,isUnreadMail,onReadRecovered} from './api.js';
 import Icon from './components/Icon.vue';
 import Modal from './components/Modal.vue';
 import RecordEditor from './components/RecordEditor.vue';
 import SourceEditor from './components/SourceEditor.vue';
 import AgentSettings from './components/AgentSettings.vue';
 import MailMeta from './components/MailMeta.vue';
+import AgentWorkspace from './components/AgentWorkspace.vue';
+import ReplyEditor from './components/ReplyEditor.vue';
+import AgentAutomation from './components/AgentAutomation.vue';
+const replyRecord=ref(null);
+async function openReply(record){if(typeof record==='string')record=await api('/records/'+encodeURIComponent(record));editor.value=null;replyRecord.value=record;}
+function openReplySource(record){replyRecord.value=null;openRecord(record);}
 const nav=[['todo','待办','todo'],['content','内容管理','content'],['library','资源库','library'],['agent','Agent','agent'],['settings','设置','settings']];
 const contentTabs=[['articles','网站文章'],['inquiries','邮件询盘'],['mic','中国制造'],['keywords','关键词'],['backlinks','外链管理']];
 const resourceTabs=[['seo','SEO 资料'],['study','学习资料'],['notes','随手笔记'],['prompts','提示词']];
@@ -23,23 +29,24 @@ const agentConfig=ref({endpoint:'https://api.openai.com/v1',model:'',secret:'',h
 const passwordForm=ref({currentPassword:'',password:''});
 const importForm=ref({format:'csv',text:'',name:''});
 const today=new Date().toLocaleDateString('zh-CN',{month:'long',day:'numeric',weekday:'long'});
-let noticeTimer,filterTimer,pollTimer,loadToken=0,openToken=0;
+let noticeTimer,filterTimer,pollTimer,loadToken=0,openToken=0,removeReadRecovery;
 let pendingRecovery=new URLSearchParams(location.hash.split('?')[1]||'').get('recover')||'';
 if(pendingRecovery)window.history.replaceState(null,'','#settings');
 const currentKind=computed(()=>page.value==='todo'?'tasks':page.value==='content'?contentTab.value:page.value==='library'?(['notes','prompts'].includes(resourceTab.value)?resourceTab.value:'resources'):'projects');
 const title=computed(()=>nav.find(n=>n[0]===page.value)?.[1]||'待办');
 const contentSources=computed(()=>sources.value.filter(s=>(!siteFilter.value||s.site===siteFilter.value)).filter(s=>currentKind.value==='articles'?(s.type==='wordpress'||s.type==='api'&&s.config.kind==='articles'):(['imap','hostinger'].includes(s.type)||s.type==='api'&&(s.config.kind||'inquiries')==='inquiries')));
+const contentSyncErrors=computed(()=>contentSources.value.filter(s=>s.state?.error));
 const latestContentSync=computed(()=>Math.max(0,...contentSources.value.map(s=>Number(s.state?.lastSuccess||0))));
 const inquiry=computed(()=>['inquiries','mic'].includes(currentKind.value));
 const addLabel=computed(()=>page.value==='library'?resourceTabs.find(r=>r[0]===resourceTab.value)?.[1]:labels[currentKind.value]);
 const showList=computed(()=>['todo','content','library'].includes(page.value)||page.value==='agent'&&agentTab.value==='projects');
 function inform(message,error=false){notice.value={message,error};clearTimeout(noticeTimer);if(!error)noticeTimer=setTimeout(()=>notice.value=null,4500);}
-function handle(error){if(error.status===401){authenticated.value=false;password.value='';}inform(error.message||'操作失败',true);}
+function handle(error){if(error.status===401){authenticated.value=false;password.value='';}inform(error.message||'操作失败',true);if(error.method==='GET'&&['NETWORK_ERROR','SERVICE_UNAVAILABLE'].includes(error.code))notice.value.readPath=error.requestPath;}
 async function login(){loginBusy.value=true;try{await api('/auth/login',{method:'POST',body:{password:password.value}});password.value='';authenticated.value=true;notice.value=null;await refresh();await openRestoredSource();}catch(e){handle(e);}finally{loginBusy.value=false;}}
 async function logout(){try{await api('/auth/logout',{method:'POST',body:{}});}catch{}authenticated.value=false;records.value=[];sources.value=[];runs.value=[];}
 function navigate(value){page.value=value;location.hash=value;mobileOpen.value=false;search.value='';history.value=false;}
 function syncHash(){const [key,query]=location.hash.slice(1).split('?');if(nav.some(n=>n[0]===key))page.value=key;if(key==='settings')agentPreset.value=new URLSearchParams(query||'').get('agent')==='opencode-go'?'opencode-go':'';if(key==='content'){const tab=new URLSearchParams(query||'').get('tab');if(contentTabs.some(t=>t[0]===tab))contentTab.value=tab;}}
-async function syncContent(){contentBusy.value=true;try{const result=await api('/content/sync',{method:'POST',body:{kind:currentKind.value,site:siteFilter.value}}),failed=result.results.filter(r=>r.ok===false),count=result.results.reduce((n,r)=>n+(r.count||0),0);if(failed.length)inform(failed[0].message,true);else inform(result.results.some(r=>r.skipped)?'正在收取，请稍后查看列表':'已读取 '+count+' 条内容');await refresh();}catch(e){handle(e);}finally{contentBusy.value=false;}}
+async function syncContent(){contentBusy.value=true;try{const result=await api('/content/sync',{method:'POST',body:{kind:currentKind.value,site:siteFilter.value}}),failed=result.results.filter(r=>r.ok===false),count=result.results.reduce((n,r)=>n+(r.count||0),0);if(failed.length)inform(failed[0].message,true);else inform(result.queued?'已安排后台收取，完成后会自动更新列表':result.results.some(r=>r.skipped)?'正在收取，请稍后查看列表':'已读取 '+count+' 条内容');await refresh();}catch(e){handle(e);}finally{contentBusy.value=false;}}
 function chooseContent(value){contentTab.value=value;history.value=false;search.value='';window.history.replaceState(null,'','#content?tab='+encodeURIComponent(value));}
 function chooseResource(value){resourceTab.value=value;search.value='';history.value=false;}
 async function reload(quiet=false){
@@ -50,7 +57,7 @@ async function reload(quiet=false){
  if(inquiry.value&&history.value)params.set('history','1');
  if(page.value==='library'&&currentKind.value==='resources')params.set('category',resourceTab.value);
  try{const result=await api('/records?'+params);if(token===loadToken){records.value=result.items;total.value=result.total;}}
- catch(e){handle(e);}finally{if(token===loadToken)loading.value=false;}
+ catch(e){if(token===loadToken)handle(e);}finally{if(token===loadToken)loading.value=false;}
 }
 async function loadSettings(){sources.value=await api('/sources');const config=await api('/agent/config');agentConfig.value={...config,secret:''};}
 async function refresh(){try{const p=await api('/records?kind=projects&limit=100');projects.value=p.items;if(page.value==='settings')await loadSettings();if(page.value==='content')sources.value=await api('/sources');if(page.value==='agent'){runs.value=await api('/agent/runs');const config=await api('/agent/config');agentConfig.value={...config,secret:''};}await reload();}catch(e){handle(e);}}
@@ -127,10 +134,10 @@ async function importRecords(){busy.value=true;try{const result=await api('/impo
 async function backup(){try{const data=await api('/backup');const url=URL.createObjectURL(new Blob([JSON.stringify(data,null,2)],{type:'application/json'}));const a=document.createElement('a');a.href=url;a.download='mimo-backup-'+new Date().toISOString().slice(0,10)+'.json';a.click();setTimeout(()=>URL.revokeObjectURL(url),1000);}catch(e){handle(e);}}
 function openBackupImport(){importForm.value={text:'',format:'json',name:''};importOpen.value=true;}
 async function restoreBackup(){busy.value=true;try{const result=await api('/import',{method:'POST',body:{text:importForm.value.text,format:'json',site:''}});importOpen.value=false;inform('已恢复 '+result.count+' 条内容');await refresh();}catch(e){handle(e);}finally{busy.value=false;}}
-onMounted(async()=>{window.addEventListener('hashchange',syncHash);try{authenticated.value=(await api('/auth/session')).authenticated;if(authenticated.value){await refresh();await openRestoredSource();}}catch(e){handle(e);}finally{checking.value=false;}
+onMounted(async()=>{removeReadRecovery=onReadRecovered(path=>{if(notice.value?.readPath===path)notice.value=null;});window.addEventListener('hashchange',syncHash);try{authenticated.value=(await api('/auth/session')).authenticated;if(authenticated.value){await refresh();await openRestoredSource();}}catch(e){handle(e);}finally{checking.value=false;}
  pollTimer=setInterval(()=>{if(authenticated.value&&!document.hidden&&!busy.value){reload(true);if(['settings','content'].includes(page.value))api('/sources').then(s=>sources.value=s).catch(()=>{});}},15000);
 });
-onBeforeUnmount(()=>{window.removeEventListener('hashchange',syncHash);clearInterval(pollTimer);clearTimeout(filterTimer);clearTimeout(noticeTimer);});
+onBeforeUnmount(()=>{removeReadRecovery?.();window.removeEventListener('hashchange',syncHash);clearInterval(pollTimer);clearTimeout(filterTimer);clearTimeout(noticeTimer);});
 </script>
 <template>
 <div v-if="checking" class="boot-state">正在打开工作台…</div>
@@ -165,21 +172,14 @@ onBeforeUnmount(()=>{window.removeEventListener('hashchange',syncHash);clearInte
     </div>
     <div class="list-toolbar"><div class="search-field"><Icon name="search" :size="17"/><input v-model="search" :aria-label="'搜索'+addLabel" :placeholder="'搜索'+addLabel"></div><select v-model="siteFilter" aria-label="按网站筛选"><option v-for="s in sites" :key="s.value" :value="s.value">{{s.label}}</option></select><button v-if="['mic','keywords','backlinks','articles','notes','prompts','resources'].includes(currentKind)" class="button secondary" @click="importForm={text:'',format:'csv',name:''};importOpen=true"><Icon name="upload" :size="16"/>导入</button></div>
     <div v-if="['articles','inquiries'].includes(currentKind)" class="content-sync-row"><span v-if="contentSources.length">已配置 {{contentSources.length}} 个{{currentKind==='articles'?'文章来源':'邮箱来源'}} · {{contentSources.some(s=>s.enabled)?'每 10 分钟自动收取':'自动收取已暂停'}} · {{latestContentSync?'最近收取 '+displayDate(latestContentSync):'等待首次收取'}}{{currentKind==='articles'&&contentSources.some(s=>s.enabled&&s.state?.hasMore)?' · 正在补齐历史文章':''}}</span><span v-else>{{currentKind==='articles'?'尚未配置文章来源':'尚未接入邮箱'}}</span><button class="button secondary small" :disabled="contentBusy||!contentSources.some(s=>s.enabled)" @click="syncContent"><Icon name="refresh" :size="14"/>{{contentBusy?'正在收取…':currentKind==='articles'?'同步文章':'立即收取'}}</button></div>
+    <p v-for="source in contentSyncErrors" :key="source.id" class="source-error" role="status">上次收取失败 · {{source.name}}：{{source.state.error}}</p>
     <div v-if="inquiry" class="inquiry-switch"><button :class="{selected:!history}" @click="history=false">待处理</button><button :class="{selected:history}" @click="history=true">历史记录</button><span>打开邮件标为已读；审核移至历史，不会重复进入待处理。</span></div>
    </template>
    <template v-else-if="page==='agent'">
     <header class="page-heading"><div><p class="eyebrow">ASSISTANT</p><h1>Agent</h1><p class="muted">让资料变成清晰的建议和下一步。</p></div><button v-if="agentTab==='projects'" class="button primary" @click="openNew"><Icon name="plus" :size="17"/>新建项目</button></header>
     <div class="tabs section-tabs" role="tablist" aria-label="Agent 分类"><button :class="{selected:agentTab==='assistant'}" role="tab" :aria-selected="agentTab==='assistant'" @click="agentTab='assistant'">整理助手</button><button :class="{selected:agentTab==='projects'}" role="tab" :aria-selected="agentTab==='projects'" @click="agentTab='projects'">项目</button></div>
     <template v-if="agentTab==='assistant'">
-     <div v-if="!agentConfig.hasSecret" class="setup-callout"><Icon name="agent" :size="24"/><div><strong>接入你的模型 API</strong><p>填写 API 地址、模型和密钥，即可开始整理。</p></div><button class="button secondary" @click="navigate('settings')">前往设置<Icon name="arrow" :size="15"/></button></div>
-     <form class="agent-form panel stack" @submit.prevent="run"><div class="field-grid"><label>整理什么<select v-model="agentInput.action"><option value="emails">邮件与中国制造询盘</option><option value="keywords">关键词</option><option value="project">项目计划</option><option value="custom">自定义任务</option></select></label><label>网站范围<select v-model="agentInput.site"><option v-for="s in sites" :key="s.value" :value="s.value">{{s.label}}</option></select></label></div>
-      <label v-if="agentInput.action==='project'">关联项目<select v-model="agentInput.projectId"><option value="">不关联项目</option><option v-for="p in projects" :key="p.id" :value="p.id">{{p.title}}</option></select></label>
-      <label>你的要求<textarea v-model="agentInput.prompt" rows="4" maxlength="10000" :required="agentInput.action==='custom'" placeholder="例如：整理待处理询盘，列出需要补充的信息和下一步。"></textarea></label>
-      <div class="agent-form-bottom"><p class="hint">建议经你确认后加入待办。邮件不会自动发送。</p><button type="submit" class="button primary" :disabled="agentRunning||!agentConfig.hasSecret">{{agentRunning?'正在整理…':'开始整理'}}<Icon v-if="!agentRunning" name="arrow" :size="16"/></button></div>
-     </form>
-     <div class="subheading"><h2>整理记录</h2><span class="muted">保留最近 30 次</span></div>
-     <div v-if="!runs.length" class="empty-small">整理完成后，结果会保存在这里。</div>
-     <details v-for="(r,index) in runs" :key="r.id" :open="index===0" class="agent-result panel"><summary><span>{{r.action==='emails'?'询盘整理':r.action==='keywords'?'关键词整理':r.action==='project'?'项目计划':'自定义整理'}}</span><span class="muted">{{displayDate(r.createdAt)}}</span></summary><div class="result-content"><p class="pre-wrap">{{r.summary}}</p><ul v-if="r.tasks?.length" class="suggested-tasks"><li v-for="(t,i) in r.tasks" :key="i"><Icon name="todo" :size="16"/><div><strong>{{t.title}}</strong><p v-if="t.content">{{t.content}}</p></div></li></ul><button v-if="r.tasks?.length" class="button" :class="r.applied?'secondary':'primary'" :disabled="r.applied||applying===r.id" @click="applyRun(r)">{{r.applied?'已加入待办':applying===r.id?'加入中…':'确认加入待办 · '+r.tasks.length+' 项'}}</button></div></details>
+     <AgentWorkspace :config="agentConfig" :projects="projects" @open="openRecord" @reply="openReply" @notice="inform" @error="handle" @settings="navigate('settings')"/>
     </template>
    </template>
    <template v-else-if="page==='settings'">
@@ -192,6 +192,7 @@ onBeforeUnmount(()=>{window.removeEventListener('hashchange',syncHash);clearInte
      </article>
     </section>
     <AgentSettings :config="agentConfig" :preset="agentPreset" :busy="busy" @save="saveAgent" @test="testAgentConnection"/>
+    <AgentAutomation :sources="sources" @notice="inform" @error="handle" @reply="openReply"/>
     <section class="settings-section panel"><div class="subheading"><div><h2>修改密码</h2><p class="muted">修改后需要重新登录。</p></div></div><form class="stack" @submit.prevent="changePassword"><div class="field-grid"><label>当前密码<input v-model="passwordForm.currentPassword" type="password" autocomplete="current-password" required></label><label>新密码<input v-model="passwordForm.password" type="password" autocomplete="new-password" minlength="12" required placeholder="至少 12 位"></label></div><div class="align-end"><button class="button secondary" :disabled="busy">更新密码</button></div></form></section>
     <section class="settings-section backup-section"><div><h2>备份与恢复</h2><p class="muted">导出待办、内容和资料；连接密钥不包含在备份中。</p></div><div class="row-actions"><button class="button secondary" @click="backup"><Icon name="download" :size="16"/>导出备份</button><button class="button secondary" @click="openBackupImport"><Icon name="upload" :size="16"/>恢复备份</button></div></section>
    </template>
@@ -204,7 +205,8 @@ onBeforeUnmount(()=>{window.removeEventListener('hashchange',syncHash);clearInte
    </template>
   </main>
  </div>
- <RecordEditor v-if="editor" :key="(editor.record?.id||editor.kind)+(editor.record?.version||0)" :record="editor.record" :kind="editor.kind" :category="editor.category" :projects="projects" :busy="busy" :mailbox="mailboxFor(editor.record)" @close="editor=null" @save="saveRecord" @remove="removeRecord" @task="addTask" @detail="noteDetail" @copy="copy"/>
+ <RecordEditor v-if="editor" :key="(editor.record?.id||editor.kind)+(editor.record?.version||0)" :record="editor.record" :kind="editor.kind" :category="editor.category" :projects="projects" :busy="busy" :mailbox="mailboxFor(editor.record)" @close="editor=null" @save="saveRecord" @remove="removeRecord" @task="addTask" @detail="noteDetail" @copy="copy" @reply="openReply"/>
+ <ReplyEditor v-if="replyRecord" :record="replyRecord" @close="replyRecord=null" @notice="inform" @error="handle" @open="openReplySource"/>
  <SourceEditor v-if="sourceEditor" :source="sourceEditor.source" :busy="busy" @close="sourceEditor=null" @save="saveSource"/>
  <Modal v-if="importOpen" :title="page==='settings'?'恢复备份':'导入'+addLabel" @close="importOpen=false"><form id="import-form" class="stack" @submit.prevent="page==='settings'?restoreBackup():importRecords()"><label>选择文件<input type="file" accept=".csv,.json" @change="readFile"></label><p v-if="importForm.name" class="hint">{{importForm.name}}</p><label v-if="page!=='settings'">格式<select v-model="importForm.format"><option value="csv">CSV</option><option value="json">JSON</option></select></label><label>或粘贴内容<textarea v-model="importForm.text" rows="10" required placeholder="title,sender,content,company,country,id"></textarea></label><p class="hint">每次最多 500 条、2MB。{{currentKind==='backlinks'?'外链列：title（网站）、url、contact、outreachSent（true/false）、feeStatus（unknown/free/paid）、content、status（new/done）。':'CSV 使用 title / content / sender / company / country 等字段。'}}相同 ID 重复导入会合并，已归档内容保留历史。</p></form><template #footer><span></span><div class="row-actions"><button class="button secondary" @click="importOpen=false">取消</button><button class="button primary" form="import-form" type="submit" :disabled="busy">{{busy?'导入中…':page==='settings'?'恢复':'开始导入'}}</button></div></template></Modal>
 </div>

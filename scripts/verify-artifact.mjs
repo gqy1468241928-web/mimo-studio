@@ -2,6 +2,7 @@ import {mkdtemp,cp,mkdir,readFile} from 'node:fs/promises';
 import path from 'node:path';
 import os from 'node:os';
 import {spawn} from 'node:child_process';
+import {createServer} from 'node:net';
 import assert from 'node:assert/strict';
 // A sibling directory cannot fall back to this project's node_modules.
 const scratchBase=path.resolve('../artifact-checks');
@@ -10,10 +11,10 @@ const target=await mkdtemp(path.join(scratchBase,'mimo-'));
 await cp('dist',target,{recursive:true});
 // Use the startup path declared for Hostinger after its output directory is flattened.
 const {main:entry}=JSON.parse(await readFile('package.json','utf8'));
-const port=3108;
-const child=spawn(process.execPath,[path.join(target,entry)],{cwd:target,env:{...process.env,NODE_ENV:'development',APP_URL:'http://localhost:'+port,PORT:String(port),DEV_PASSWORD:'artifact-test-password',SQLITE_FILE:path.join(target,'check.sqlite')},stdio:['ignore','pipe','pipe']});
+const probe=createServer();await new Promise(r=>probe.listen(0,'127.0.0.1',r));const port=probe.address().port;await new Promise(r=>probe.close(r));
+const child=spawn(process.execPath,[path.join(target,entry)],{cwd:target,env:{...process.env,NODE_ENV:'development',APP_URL:'http://127.0.0.1:'+port,PORT:String(port),DEV_PASSWORD:'artifact-test-password',SQLITE_FILE:path.join(target,'check.sqlite')},stdio:['ignore','pipe','pipe']});
 let output='';child.stdout.on('data',chunk=>output+=chunk);child.stderr.on('data',chunk=>output+=chunk);
-const base='http://localhost:'+port;
+const base='http://127.0.0.1:'+port;
 try{
  const deadline=Date.now()+12000;let ready=false;
  while(Date.now()<deadline){

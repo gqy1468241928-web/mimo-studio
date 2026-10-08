@@ -39,7 +39,7 @@ test('public WordPress sources need no API key and can be fetched through authen
   const login=await request('/api/auth/login','POST',{password:'test-only-password'});cookie=login.headers.get('set-cookie').split(';')[0];
   const create=await request('/api/sources','POST',{name:'Website articles',type:'wordpress',site:'apexcomponent.com',enabled:true,config:{origin:'https://apexcomponent.com'}});assert.equal(create.status,200);assert.equal((await create.json()).hasSecret,false);
   assert.equal((await request('/api/sources','POST',{name:'Invalid',type:'wordpress',site:'globalwellpcb.com',config:{origin:'https://apexcomponent.com'}})).status,400);
-  const sync=await request('/api/content/sync','POST',{kind:'articles',site:''});assert.equal(sync.status,200);assert.equal((await sync.json()).results.length,1);
+  const sync=await request('/api/content/sync','POST',{kind:'articles',site:''});assert.equal(sync.status,202);assert.equal((await sync.json()).results.length,1);
  }finally{await new Promise(r=>server.close(r));await store.close();}
 });
 
