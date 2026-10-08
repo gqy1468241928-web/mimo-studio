@@ -11,3 +11,10 @@ export const displayDate=value=>value?new Date(value).toLocaleString('zh-CN',{mo
 export function safeLink(value){try{const u=new URL(value);return ['https:','http:'].includes(u.protocol)&&!u.username&&!u.password?u.href:'';}catch{return '';}}
 
 export const feeStatusLabels={unknown:'待确认',free:'免费',paid:'需要费用'};
+
+export const isUnreadMail=record=>record?.kind==='inquiries'&&!!record.sourceId&&record.status!=='archived'&&!record.readAt;
+export function mailDate(value){
+ if(!value)return '日期未知';
+ const date=new Date(value);if(!Number.isFinite(date.getTime()))return '日期未知';
+ return date.toLocaleString('zh-CN',{timeZone:'Asia/Shanghai',year:'numeric',month:'2-digit',day:'2-digit',hour:'2-digit',minute:'2-digit',hour12:false});
+}

@@ -17,7 +17,7 @@ const recordSchema=z.object({
  content:z.string().max(200000).default(''),due:z.string().max(20).default(''),url:z.string().max(2000).default(''),
  sender:small,company:small,country:small,userNotes:z.string().max(10000).default(''),category:small,tags:small,keyword:small,intent:small,volume:small,projectId:small,
  publishedAt:small,modifiedAt:small,contact:small,outreachSent:z.boolean().default(false),feeStatus:z.enum(['unknown','free','paid']).default('unknown'),
- sourceId:z.string().max(100).optional(),externalId:small,messageId:small,receivedAt:small,truncated:z.boolean().optional(),reviewedAt:z.number().optional()
+ sourceId:z.string().max(100).optional(),externalId:small,messageId:small,receivedAt:small,mailbox:z.string().max(320).optional(),readAt:z.number().nonnegative().optional(),truncated:z.boolean().optional(),reviewedAt:z.number().optional()
 }).superRefine((record,ctx)=>{
  if(record.kind!=='backlinks')return;
  if(!['new','done'].includes(record.status))ctx.addIssue({code:'custom',path:['status'],message:'外链发送内容状态请选择未完成或已完成'});
@@ -135,6 +135,7 @@ export async function createApp({store,config,synchronizer,publicDir,agentReques
  const kind=z.enum(kinds).parse(req.query.kind),options={site:site.parse(req.query.site||''),history:req.query.history==='1',status:String(req.query.status||''),category:String(req.query.category||'').slice(0,30),search:String(req.query.search||'').slice(0,100),limit:Number(req.query.limit||50),offset:Number(req.query.offset||0)};
  res.json(await store.list(kind,options));
  }));
+ app.post('/api/mail/:id/read',asyncRoute(async(req,res)=>res.json(await store.markMailRead(req.params.id))));
  app.get('/api/records/:id',asyncRoute(async(req,res)=>{
  const record=await store.get(req.params.id);if(!record)return res.status(404).json({error:'内容不存在'});res.json(record);
  }));
@@ -144,6 +145,7 @@ export async function createApp({store,config,synchronizer,publicDir,agentReques
  app.put('/api/records/:id',asyncRoute(async(req,res)=>{
  const old=await store.get(req.params.id);if(!old)return res.status(404).json({error:'内容不存在'});
  const input=recordSchema.parse({...old,...req.body,id:old.id,kind:old.kind});
+ if(old.kind==='inquiries'&&old.sourceId){input.readAt=old.readAt;input.mailbox=old.mailbox;}
  if(input.status==='archived'&&old.status!=='archived')input.reviewedAt=Date.now();
  res.json(await store.save(input,Number(req.body.version)));
  }));

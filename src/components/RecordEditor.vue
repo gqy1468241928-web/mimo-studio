@@ -2,8 +2,9 @@
 import {reactive,ref,computed} from 'vue';
 import Modal from './Modal.vue';
 import Icon from './Icon.vue';
+import MailMeta from './MailMeta.vue';
 import {sites,labels,statusLabels,safeLink,feeStatusLabels,displayDate} from '../api.js';
-const props=defineProps({record:Object,kind:String,category:String,projects:Array,busy:Boolean});
+const props=defineProps({record:Object,kind:String,category:String,projects:Array,busy:Boolean,mailbox:String});
 const emit=defineEmits(['close','save','remove','task','detail','copy']);
 const form=reactive({title:'',kind:props.kind,site:'',status:props.kind==='tasks'?'todo':props.kind==='articles'?'draft':'new',content:'',due:'',url:'',sender:'',company:'',country:'',category:props.category||'',tags:'',keyword:'',intent:'',volume:'',contact:'',outreachSent:false,feeStatus:'unknown',userNotes:'',projectId:'',...props.record});
 const inquiry=computed(()=>['inquiries','mic'].includes(form.kind));
@@ -24,6 +25,7 @@ function save(){emit('save',{...form,title:form.title.trim()});}
   <div v-if="kind==='keywords'" class="field-grid"><label>搜索意图<input v-model="form.intent" placeholder="采购、选型、学习…"></label><label>搜索量<input v-model="form.volume" placeholder="没有数据可留空"></label></div>
   <label v-if="['articles','resources','notes','keywords','backlinks'].includes(kind)">{{kind==='backlinks'?'外链网站地址':'链接'}}<input v-model="form.url" type="url" placeholder="https://"><a v-if="safeLink(form.url)" :href="safeLink(form.url)" target="_blank" rel="noopener noreferrer" class="text-link">打开链接 ↗</a></label>
   <div v-if="kind==='articles'&&record?.sourceId" class="field-grid"><label>发布时间<span class="hint">{{displayDate(record.publishedAt)}}</span></label><label>原站最近更新<span class="hint">{{displayDate(record.modifiedAt)}}</span></label></div>
+  <MailMeta v-if="kind==='inquiries'&&record?.sourceId" :record="record" :mailbox="mailbox"/>
   <label>{{kind==='backlinks'?'发送信息内容':kind==='prompts'?'提示词模板':inquiry?'询盘原文':kind==='keywords'?'选词说明':kind==='tasks'?'备注':'内容'}}<textarea v-model="form.content" :readonly="!!record?.sourceId" :rows="kind==='tasks'?4:10" :placeholder="kind==='backlinks'?'记录准备发送或已经发送的外链请求消息':kind==='prompts'?'把提示词粘贴在这里，用 {{主题}} 等标记可替换的部分。':'填写内容或直接粘贴文本'"></textarea></label>
   <p v-if="record?.truncated" class="hint">{{kind==='articles'?'正文较长，当前内容已截断。完整文章请打开原文链接查看。':'正文较长，当前内容已截断。附件及完整原文请在原邮箱查看。'}}</p>
   <label v-if="record?.sourceId||inquiry">我的处理备注<textarea v-model="form.userNotes" rows="3" placeholder="记录你的判断和下一步，原文会保留。"></textarea></label>

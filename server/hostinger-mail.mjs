@@ -41,7 +41,7 @@ export async function readHostingerSource(source,token,options={}){
  if(typeof row.uid==='string'&&!/^\d+$/.test(row.uid)||!Number.isSafeInteger(Number(row.uid))||Number(row.uid)<1||row.path&&row.path!==cfg.folder)throw new Error('邮件标识或文件夹范围异常');
  const externalId='hostinger:'+cfg.mailboxId+':'+encodeURIComponent(cfg.folder)+':'+row.uid;
  const from=row.from||{},sender=(clip(from.name,200)?clip(from.name,200)+' <'+clip(from.address,300)+'>':clip(from.address,300));
- return {id:stable(source.id,externalId),kind:'inquiries',sourceId:source.id,externalId,site:source.site||'',status:'new',title:hide(row.subject||'无主题邮件',token).slice(0,300),content:'',sender:hide(sender,token).slice(0,300),receivedAt:clip(row.date,100),messageId:clip(row.messageId,500),url:'https://mail.hostinger.com/'};
+ return {id:stable(source.id,externalId),kind:'inquiries',sourceId:source.id,externalId,site:source.site||'',status:'new',title:hide(row.subject||'无主题邮件',token).slice(0,300),content:'',sender:hide(sender,token).slice(0,300),mailbox:cfg.user,receivedAt:clip(row.date,100),messageId:clip(row.messageId,500),url:'https://mail.hostinger.com/'};
  });
  if(new Set(records.map(row=>row.id)).size!==records.length)throw new Error('Hostinger 返回了重复邮件');
  return {records,state:{...source.state,mailbox:cfg.user}};

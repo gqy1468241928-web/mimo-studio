@@ -53,7 +53,7 @@ async function readMail(source,secret) {
  if(chosen.length)for await(const mail of client.fetch(chosen,{uid:true,envelope:true,internalDate:true,source:{start:0,maxLength:262144}},{uid:true})){
  const parsed=mail.source?await simpleParser(mail.source,{skipHtmlToText:true,skipTextToHtml:true,skipImageLinks:true}):null;
  const env=mail.envelope||{},sender=parsed?.from?.text||(env.from||[]).map(x=>[x.name,x.address].filter(Boolean).join(' ')).join(', ');
- records.push({id:stable(source.id,validity+':'+mail.uid),kind:'inquiries',sourceId:source.id,site:source.site||'',status:'new',title:text(parsed?.subject||env.subject||'无主题',300),content:text(parsed?.text||'此邮件没有纯文本正文。请在原邮箱查看 HTML 正文和附件。'),sender:text(sender,300),receivedAt:mail.internalDate?.toISOString()||'',messageId:text(parsed?.messageId||env.messageId,500),truncated:!!mail.source&&mail.source.length>=262144});
+ records.push({id:stable(source.id,validity+':'+mail.uid),kind:'inquiries',sourceId:source.id,site:source.site||'',status:'new',title:text(parsed?.subject||env.subject||'无主题',300),content:text(parsed?.text||'此邮件没有纯文本正文。请在原邮箱查看 HTML 正文和附件。'),sender:text(sender,300),mailbox:text(cfg.user,320),receivedAt:mail.internalDate?.toISOString()||'',messageId:text(parsed?.messageId||env.messageId,500),truncated:!!mail.source&&mail.source.length>=262144});
  lastUid=Math.max(lastUid,mail.uid);
  }
  return {records,state:{...source.state,validity,lastUid,remaining:Math.max(0,uids.length-chosen.length)}};

@@ -19,6 +19,8 @@ test('Hostinger sync uses scoped latest metadata and never reads or changes remo
  const calls=[],result=await readHostingerSource(source,token,{request:fixture(calls)});
  assert.equal(result.records.length,1);assert.equal(result.records[0].title,'RFQ');
  assert.equal(result.records[0].sender,'Buyer <buyer@example.com>');
+ assert.equal(result.records[0].mailbox,'info@globalwellpcb.com');
+ assert.equal(result.records[0].receivedAt,'2026-10-08T00:00:00Z');
  assert.equal(result.records[0].externalId,'hostinger:ACtest:INBOX:41');
  assert.equal(calls[1].searchParams.get('sort'),'-uid');assert.equal(calls.length,2);
  assert.ok(!calls.some(u=>u.pathname.endsWith('/text')));

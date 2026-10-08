@@ -18,3 +18,17 @@
 .backlink-tracking{display:flex;flex-wrap:wrap;gap:6px}.backlink-tracking .status-chip{white-space:nowrap;color:#66735e}.backlink-tracking .is-sent,.backlink-tracking .is-complete{background:#e4f0e6;color:#2d6d50}.backlink-tracking .is-paid{background:#f5eddd;color:#88631f}
 
 .content-sync-row{display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:10px;color:#87947f;font-size:11px;margin:0 0 18px}.content-sync-row .button{flex-shrink:0}
+
+/* Synced mail uses the workbench read record; review/archive remains independent. */
+.record-row.mail-row{border-left:3px solid transparent;padding-left:14px;padding-right:14px;transition:background .15s,border-color .15s}
+.record-row.mail-row.is-unread{background:#eef7f3;border-left-color:#226b5e}
+.record-row.mail-row.is-unread:hover{background:#e7f2ec}
+.mail-row.is-unread .record-title{color:#154f45;font-weight:700}
+.mail-information{display:flex;align-items:center;gap:8px 12px;flex-wrap:wrap;font-size:11px;line-height:1.6;text-align:left}
+.mail-read-status{display:inline-flex;align-items:center;gap:5px;padding:2px 7px;border-radius:4px;color:#556453;background:#edf0e9;font-weight:550;white-space:nowrap}
+.mail-read-status.is-unread{color:#164d3e;background:#cfe8da;font-weight:700}
+.mail-read-status.is-unread:before{content:'';width:5px;height:5px;border-radius:50%;background:#226b5e}
+.mail-source{display:inline-flex;align-items:center;gap:5px;color:#226b5e;font-weight:600;overflow-wrap:anywhere;max-width:100%}
+.mail-source svg{flex-shrink:0}
+.mail-date{color:#556453;font-variant-numeric:tabular-nums;white-space:normal}
+@media(max-width:640px){.record-row.mail-row{padding-left:10px;padding-right:10px}.mail-information{font-size:10px;gap:5px 9px}.mail-date{flex-basis:100%}.mail-row .record-row-actions{align-self:flex-start}}

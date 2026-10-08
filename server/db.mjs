@@ -42,6 +42,12 @@ export async function openStore(options={}) {
  return {
   get:id=>read(()=>get(id)),
   save:(record,version)=>lock(()=>save(record,version)),
+  markMailRead:id=>lock(async()=>{
+   const record=await get(id);
+   if(record?.kind!=='inquiries'||!record.sourceId)throw Object.assign(new Error('同步邮件不存在'),{status:404});
+   if(record.readAt)return record;
+   return save({...record,readAt:Date.now()},record.version);
+  }),
   list:(kind,{site='',history=false,limit=50,offset=0,search='',status='',category=''}={})=>read(async()=>{
    const conditions=['kind=?'],params=[kind];
    if(site){conditions.push('site=?');params.push(site);}
@@ -61,7 +67,7 @@ export async function openStore(options={}) {
   upsertExternal:record=>lock(async()=>{
    const old=await get(record.id);
    if(old?.status==='archived')return old;
-   const merged=old?{...old,...record,status:old.status,site:old.site,projectId:old.projectId,tags:old.tags,userNotes:old.userNotes}:record;
+   const merged=old?{...old,...record,status:old.status,site:old.site,projectId:old.projectId,tags:old.tags,userNotes:old.userNotes,readAt:old.readAt||record.readAt}:record;
    return save(merged,old?.version||0);
   }),
   listSources:()=>read(async()=>{const rows=await query('SELECT * FROM wb_sources ORDER BY id');return rows.map(r=>({...JSON.parse(r.payload),enabled:!!r.enabled,nextRun:Number(r.next_run)}));}),
