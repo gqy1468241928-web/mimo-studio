@@ -1,5 +1,6 @@
 import express from 'express';
-import {randomUUID} from 'node:crypto';
+import {randomUUID,createHash} from 'node:crypto';
+import {recoveryRecipient,decryptRecovery,recoverySources} from './source-recovery.mjs';
 import {z} from 'zod';
 import {seal,unseal,equal,signSession,verifySession,cookieValue,hashPassword,checkPassword,publicUrl} from './security.mjs';
 import {runAgent} from './agent.mjs';
@@ -74,7 +75,50 @@ export async function createApp({store,config,synchronizer,publicDir}){
  if(!equal(req.get('x-cron-secret'),config.cronSecret)&&!await authenticated(req))return res.status(401).json({error:'请先登录'});
  res.json(await synchronizer.tick({force:false}));
  }));
+ app.get('/api/source-recovery/key',(_req,res)=>res.json(recoveryRecipient(config.encryptionKey,config.appUrl)));
+ app.get('/api/source-recovery/receipt/:id',asyncRoute(async(req,res)=>{
+  if(!/^[a-f0-9]{8}-[a-f0-9]{4}-4[a-f0-9]{3}-[89ab][a-f0-9]{3}-[a-f0-9]{12}$/.test(req.params.id))return res.status(404).json({error:'恢复记录不存在'});
+  const receipt=await store.getSetting('source-recovery:'+req.params.id);
+  if(!receipt||receipt.expiresAt<Date.now())return res.status(404).json({error:'恢复记录不存在'});
+  res.json({done:receipt.done,count:receipt.count,synced:receipt.synced,failed:receipt.failed});
+ }));
  app.use('/api',guard);
+ let recoveryWork=Promise.resolve();
+ app.post('/api/source-recovery',asyncRoute(async(req,res)=>{
+  const bundle=z.object({bundle:z.string().max(24000)}).parse(req.body).bundle;
+  const payload=decryptRecovery(bundle,config.encryptionKey,config.appUrl);
+  const allowed=config.recoverySources||recoverySources;
+  const values=payload.sources.map(raw=>{
+   const approved=allowed.find(s=>s.id===raw.id);
+   if(!approved||raw.type!==approved.type||typeof raw.secret!=='string'||!equal(createHash('sha256').update(raw.secret).digest('hex'),approved.secretHash))throw new Error('仅支持本次授权的原连接');
+   const input=sourceSchema.parse({...approved,secret:raw.secret,enabled:raw.enabled===true});
+   if(!input.secret||!['hostinger','get'].includes(input.type))throw new Error('恢复配置无效');
+   if(input.type==='hostinger')validateHostingerConfig(input);
+   if(input.type==='get'&&!input.config.clientId)throw new Error('恢复配置无效');
+   return input;
+  });
+  if(new Set(values.map(s=>s.id)).size!==values.length)throw new Error('恢复配置重复');
+  const receiptId='source-recovery:'+payload.id;
+  const operation=recoveryWork.then(async()=>{
+   const receipt=await store.getSetting(receiptId);
+   if(receipt)return {count:receipt.count};
+   const existing=await store.listSources(),saved=[];
+   for(const input of values){
+    const old=existing.find(s=>s.id===input.id||s.type===input.type&&(input.type==='hostinger'?s.config.mailboxId===input.config.mailboxId:s.config.clientId===input.config.clientId));
+    if(old?.secret){saved.push(old);continue;}
+    const id=old?.id||input.id,secret=seal(input.secret,config.encryptionKey,id);
+    saved.push(await store.saveSource({...old,...input,id,secret,state:old?.state||{},nextRun:0}));
+   }
+   const receiptValue={count:saved.length,expiresAt:payload.expiresAt,done:false,synced:0,failed:0};
+   await store.setSetting(receiptId,receiptValue);
+   Promise.allSettled(saved.filter(s=>s.enabled).map(s=>synchronizer.syncOne(s.id,{force:true}))).then(async(results)=>{
+    await store.setSetting(receiptId,{...receiptValue,done:true,synced:results.filter(r=>r.status==='fulfilled'&&r.value?.ok).length,failed:results.filter(r=>r.status==='rejected'||r.value?.ok===false).length});
+   }).catch(()=>{});
+   return {count:saved.length};
+  });
+  recoveryWork=operation.catch(()=>{});res.json(await operation);
+ }));
+
  app.post('/api/auth/password',asyncRoute(async(req,res)=>{
  const input=z.object({currentPassword:z.string().max(256),password:z.string().min(12,'新密码至少 12 位').max(256)}).parse(req.body),auth=await store.getSetting('auth');
  if(!checkPassword(input.currentPassword,auth.hash))return res.status(400).json({error:'当前密码不正确'});

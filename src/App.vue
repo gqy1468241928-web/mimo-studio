@@ -20,6 +20,8 @@ const passwordForm=ref({currentPassword:'',password:''});
 const importForm=ref({format:'csv',text:'',name:''});
 const today=new Date().toLocaleDateString('zh-CN',{month:'long',day:'numeric',weekday:'long'});
 let noticeTimer,filterTimer,pollTimer,loadToken=0;
+let pendingRecovery=new URLSearchParams(location.hash.split('?')[1]||'').get('recover')||'';
+if(pendingRecovery)window.history.replaceState(null,'','#settings');
 const currentKind=computed(()=>page.value==='todo'?'tasks':page.value==='content'?contentTab.value:page.value==='library'?(['notes','prompts'].includes(resourceTab.value)?resourceTab.value:'resources'):'projects');
 const title=computed(()=>nav.find(n=>n[0]===page.value)?.[1]||'待办');
 const inquiry=computed(()=>['inquiries','mic'].includes(currentKind.value));
@@ -27,7 +29,7 @@ const addLabel=computed(()=>page.value==='library'?resourceTabs.find(r=>r[0]===r
 const showList=computed(()=>['todo','content','library'].includes(page.value)||page.value==='agent'&&agentTab.value==='projects');
 function inform(message,error=false){notice.value={message,error};clearTimeout(noticeTimer);if(!error)noticeTimer=setTimeout(()=>notice.value=null,4500);}
 function handle(error){if(error.status===401){authenticated.value=false;password.value='';}inform(error.message||'操作失败',true);}
-async function login(){loginBusy.value=true;try{await api('/auth/login',{method:'POST',body:{password:password.value}});password.value='';authenticated.value=true;notice.value=null;await refresh();openRestoredSource();}catch(e){handle(e);}finally{loginBusy.value=false;}}
+async function login(){loginBusy.value=true;try{await api('/auth/login',{method:'POST',body:{password:password.value}});password.value='';authenticated.value=true;notice.value=null;await refresh();await openRestoredSource();}catch(e){handle(e);}finally{loginBusy.value=false;}}
 async function logout(){try{await api('/auth/logout',{method:'POST',body:{}});}catch{}authenticated.value=false;records.value=[];sources.value=[];runs.value=[];}
 function navigate(value){page.value=value;location.hash=value;mobileOpen.value=false;search.value='';history.value=false;}
 function chooseContent(value){contentTab.value=value;history.value=false;search.value='';}
@@ -63,7 +65,13 @@ async function removeRecord(record){busy.value=true;try{await api('/records/'+re
 function addTask(record){editor.value={record:null,kind:'tasks',category:''};editor.value.record={kind:'tasks',title:('跟进：'+record.title).slice(0,300),site:record.site,status:'todo',content:'来源：'+labels[record.kind]+' / '+record.id+'\n'+(record.sender||'')+'\n'+(record.userNotes||'')};}
 async function noteDetail(record){busy.value=true;try{const result=await api((record.kind==='inquiries'?'/mail/':'/notes/')+record.id+'/detail',{method:'POST',body:{}});openRecord(result);inform('完整内容已获取');await reload();}catch(e){handle(e);}finally{busy.value=false;}}
 async function copy(text){try{await navigator.clipboard.writeText(text);inform('已复制');}catch{inform('无法访问剪贴板，可直接选中文本复制',true);}}
-function openRestoredSource(){
+async function openRestoredSource(){
+ if(pendingRecovery){
+  busy.value=true;inform('正在恢复之前的信息来源…');
+  try{const result=await api('/source-recovery',{method:'POST',body:{bundle:pendingRecovery}});pendingRecovery='';await loadSettings();inform('已恢复 '+result.count+' 个来源，开始自动收取');}
+  catch(e){handle(e);}finally{busy.value=false;}
+  return;
+ }
  const encoded=new URLSearchParams(location.hash.split('?')[1]||'').get('restore');
  if(!encoded)return;
  try{
@@ -93,7 +101,7 @@ async function importRecords(){busy.value=true;try{const result=await api('/impo
 async function backup(){try{const data=await api('/backup');const url=URL.createObjectURL(new Blob([JSON.stringify(data,null,2)],{type:'application/json'}));const a=document.createElement('a');a.href=url;a.download='mimo-backup-'+new Date().toISOString().slice(0,10)+'.json';a.click();setTimeout(()=>URL.revokeObjectURL(url),1000);}catch(e){handle(e);}}
 function openBackupImport(){importForm.value={text:'',format:'json',name:''};importOpen.value=true;}
 async function restoreBackup(){busy.value=true;try{const result=await api('/import',{method:'POST',body:{text:importForm.value.text,format:'json',site:''}});importOpen.value=false;inform('已恢复 '+result.count+' 条内容');await refresh();}catch(e){handle(e);}finally{busy.value=false;}}
-onMounted(async()=>{try{authenticated.value=(await api('/auth/session')).authenticated;if(authenticated.value){await refresh();openRestoredSource();}}catch(e){handle(e);}finally{checking.value=false;}
+onMounted(async()=>{try{authenticated.value=(await api('/auth/session')).authenticated;if(authenticated.value){await refresh();await openRestoredSource();}}catch(e){handle(e);}finally{checking.value=false;}
  pollTimer=setInterval(()=>{if(authenticated.value&&!document.hidden&&!busy.value){reload(true);if(page.value==='settings')api('/sources').then(s=>sources.value=s).catch(()=>{});}},60000);
 });
 onBeforeUnmount(()=>{clearInterval(pollTimer);clearTimeout(filterTimer);clearTimeout(noticeTimer);});
