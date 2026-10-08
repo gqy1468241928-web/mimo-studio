@@ -1,4 +1,4 @@
-import {mkdtemp,cp,mkdir} from 'node:fs/promises';
+import {mkdtemp,cp,mkdir,readFile} from 'node:fs/promises';
 import path from 'node:path';
 import os from 'node:os';
 import {spawn} from 'node:child_process';
@@ -8,8 +8,10 @@ const scratchBase=path.resolve('../artifact-checks');
 await mkdir(scratchBase,{recursive:true});
 const target=await mkdtemp(path.join(scratchBase,'mimo-'));
 await cp('dist',target,{recursive:true});
+// Use the startup path declared for Hostinger after its output directory is flattened.
+const {main:entry}=JSON.parse(await readFile('package.json','utf8'));
 const port=3108;
-const child=spawn(process.execPath,[path.join(target,'server.mjs')],{cwd:target,env:{...process.env,NODE_ENV:'development',APP_URL:'http://localhost:'+port,PORT:String(port),DEV_PASSWORD:'artifact-test-password',SQLITE_FILE:path.join(target,'check.sqlite')},stdio:['ignore','pipe','pipe']});
+const child=spawn(process.execPath,[path.join(target,entry)],{cwd:target,env:{...process.env,NODE_ENV:'development',APP_URL:'http://localhost:'+port,PORT:String(port),DEV_PASSWORD:'artifact-test-password',SQLITE_FILE:path.join(target,'check.sqlite')},stdio:['ignore','pipe','pipe']});
 let output='';child.stdout.on('data',chunk=>output+=chunk);child.stderr.on('data',chunk=>output+=chunk);
 const base='http://localhost:'+port;
 try{
@@ -28,4 +30,4 @@ try{
  const result=await (await fetch(base+'/api/records?kind=tasks',{headers:{cookie}})).json();
  assert.equal(result.items[0].title,'artifact validation');assert.equal(result.total,1);
  console.log('Standalone artifact passed: startup, authentication, private CRUD');
-}finally{child.kill();await new Promise(r=>child.once('exit',r));}
+}finally{if(child.exitCode===null&&child.signalCode===null){const stopped=new Promise(r=>child.once('exit',r));child.kill();await stopped;}}

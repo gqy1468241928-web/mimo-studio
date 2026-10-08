@@ -38,7 +38,7 @@ Agent 只使用已有的待处理资料；每类最多 30 条，正文限制 400
 
 或者构建后运行：
     npm run build
-    node dist/server.mjs
+    node server.mjs
 
 生产必须设置环境变量，缺少 MySQL/会话/加密配置时拒绝启动，不使用临时内存数据库。
 不要在公开网站运行默认的开发模式。
@@ -56,9 +56,9 @@ Agent 只使用已有的待处理资料；每类最多 30 条，正文限制 400
 | 根目录 | . |
 | 构建脚本 | build |
 | 输出目录 | dist |
-| 入口文件 | dist/server.mjs（相对项目根目录） |
+| 入口文件 | server.mjs（相对项目根目录） |
 
-构建将前端放在 dist/public，后端放在 dist/server.mjs。运行时使用平台提供的 PORT 并监听 0.0.0.0。部署后先检查 /api/health，再检查登录、数据保存和访问限制。平台入口具体路径以实际部署日志和线上验收为准。
+构建将前端放在 dist/public，后端放在 server.mjs。运行时使用平台提供的 PORT 并监听 0.0.0.0。部署后先检查 /api/health，再检查登录、数据保存和访问限制。平台入口具体路径以实际部署日志和线上验收为准。
 
 环境变量：
 - NODE_ENV=production
