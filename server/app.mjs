@@ -7,7 +7,7 @@ import {runAgent} from './agent.mjs';
 import {getNoteDetail} from './sources.mjs';
 import {parseImport} from './import.mjs';
 import {hostingerMailboxes,validateHostingerConfig,readHostingerBody} from './hostinger-mail.mjs';
-export const kinds=['tasks','articles','inquiries','mic','keywords','resources','notes','prompts','projects'];
+export const kinds=['tasks','articles','inquiries','mic','keywords','backlinks','resources','notes','prompts','projects'];
 const site=z.enum(['','apexcomponent.com','globalwellpcb.com']).default('');
 const small=z.string().max(500).default('');
 const recordSchema=z.object({
@@ -15,7 +15,12 @@ const recordSchema=z.object({
  status:z.enum(['todo','done','new','draft','writing','published','following','archived']).default('new'),
  content:z.string().max(200000).default(''),due:z.string().max(20).default(''),url:z.string().max(2000).default(''),
  sender:small,company:small,country:small,userNotes:z.string().max(10000).default(''),category:small,tags:small,keyword:small,intent:small,volume:small,projectId:small,
+ contact:small,outreachSent:z.boolean().default(false),feeStatus:z.enum(['unknown','free','paid']).default('unknown'),
  sourceId:z.string().max(100).optional(),externalId:small,messageId:small,receivedAt:small,truncated:z.boolean().optional(),reviewedAt:z.number().optional()
+}).superRefine((record,ctx)=>{
+ if(record.kind!=='backlinks')return;
+ if(!['new','done'].includes(record.status))ctx.addIssue({code:'custom',path:['status'],message:'外链发送内容状态请选择未完成或已完成'});
+ if(record.url)try{const url=new URL(record.url);if(!['https:','http:'].includes(url.protocol)||url.username||url.password)throw new Error();}catch{ctx.addIssue({code:'custom',path:['url'],message:'外链网站地址请填写有效的 HTTP 或 HTTPS 链接'});}
 });
 const sourceSchema=z.object({id:z.string().max(100).optional(),name:z.string().trim().min(1).max(100),type:z.enum(['imap','api','get','hostinger']),site,enabled:z.boolean().default(true),secret:z.string().max(8192).optional(),
  config:z.object({mailboxId:z.string().regex(/^[A-Za-z0-9_-]{1,128}$/).optional(),host:z.string().max(255).optional(),user:z.string().max(300).optional(),folder:z.string().max(200).optional(),days:z.coerce.number().min(1).max(90).optional(),
