@@ -8,7 +8,8 @@ import SourceEditor from './components/SourceEditor.vue';
 const nav=[['todo','待办','todo'],['content','内容管理','content'],['library','资源库','library'],['agent','Agent','agent'],['settings','设置','settings']];
 const contentTabs=[['articles','网站文章'],['inquiries','邮件询盘'],['mic','中国制造'],['keywords','关键词']];
 const resourceTabs=[['seo','SEO 资料'],['study','学习资料'],['notes','随手笔记'],['prompts','提示词']];
-const page=ref(['todo','content','library','agent','settings'].includes(location.hash.slice(1))?location.hash.slice(1):'todo');
+const initialPage=location.hash.slice(1).split('?')[0];
+const page=ref(['todo','content','library','agent','settings'].includes(initialPage)?initialPage:'todo');
 const contentTab=ref('articles'),resourceTab=ref('seo'),agentTab=ref('assistant'),todoTab=ref('todo'),siteFilter=ref(''),history=ref(false),search=ref(''),offset=ref(0);
 const authenticated=ref(false),checking=ref(true),password=ref(''),loginBusy=ref(false),loading=ref(false),busy=ref(false),busyId=ref(''),mobileOpen=ref(false);
 const notice=ref(null),records=ref([]),total=ref(0),sources=ref([]),projects=ref([]),runs=ref([]),editor=ref(null),sourceEditor=ref(null),importOpen=ref(false);
@@ -26,7 +27,7 @@ const addLabel=computed(()=>page.value==='library'?resourceTabs.find(r=>r[0]===r
 const showList=computed(()=>['todo','content','library'].includes(page.value)||page.value==='agent'&&agentTab.value==='projects');
 function inform(message,error=false){notice.value={message,error};clearTimeout(noticeTimer);if(!error)noticeTimer=setTimeout(()=>notice.value=null,4500);}
 function handle(error){if(error.status===401){authenticated.value=false;password.value='';}inform(error.message||'操作失败',true);}
-async function login(){loginBusy.value=true;try{await api('/auth/login',{method:'POST',body:{password:password.value}});password.value='';authenticated.value=true;notice.value=null;await refresh();}catch(e){handle(e);}finally{loginBusy.value=false;}}
+async function login(){loginBusy.value=true;try{await api('/auth/login',{method:'POST',body:{password:password.value}});password.value='';authenticated.value=true;notice.value=null;await refresh();openRestoredSource();}catch(e){handle(e);}finally{loginBusy.value=false;}}
 async function logout(){try{await api('/auth/logout',{method:'POST',body:{}});}catch{}authenticated.value=false;records.value=[];sources.value=[];runs.value=[];}
 function navigate(value){page.value=value;location.hash=value;mobileOpen.value=false;search.value='';history.value=false;}
 function chooseContent(value){contentTab.value=value;history.value=false;search.value='';}
@@ -62,6 +63,18 @@ async function removeRecord(record){busy.value=true;try{await api('/records/'+re
 function addTask(record){editor.value={record:null,kind:'tasks',category:''};editor.value.record={kind:'tasks',title:('跟进：'+record.title).slice(0,300),site:record.site,status:'todo',content:'来源：'+labels[record.kind]+' / '+record.id+'\n'+(record.sender||'')+'\n'+(record.userNotes||'')};}
 async function noteDetail(record){busy.value=true;try{const result=await api((record.kind==='inquiries'?'/mail/':'/notes/')+record.id+'/detail',{method:'POST',body:{}});openRecord(result);inform('完整内容已获取');await reload();}catch(e){handle(e);}finally{busy.value=false;}}
 async function copy(text){try{await navigator.clipboard.writeText(text);inform('已复制');}catch{inform('无法访问剪贴板，可直接选中文本复制',true);}}
+function openRestoredSource(){
+ const encoded=new URLSearchParams(location.hash.split('?')[1]||'').get('restore');
+ if(!encoded)return;
+ try{
+  if(encoded.length>5000||!/^[A-Za-z0-9_-]+$/.test(encoded))throw new Error();
+  const raw=JSON.parse(new TextDecoder().decode(Uint8Array.from(atob(encoded.replace(/-/g,'+').replace(/_/g,'/')),c=>c.charCodeAt(0))));
+  if(!['hostinger','get'].includes(raw.type)||!raw.config||typeof raw.name!=='string')throw new Error();
+  const config=raw.type==='hostinger'?{mailboxId:String(raw.config.mailboxId||''),user:String(raw.config.user||''),folder:String(raw.config.folder||'INBOX')}:{clientId:String(raw.config.clientId||'')};
+  const restored={name:raw.name.slice(0,100),type:raw.type,site:sites.some(s=>s.value===raw.site)?raw.site:'',config,enabled:false,hasSecret:false,restoreDraft:true};
+  sourceEditor.value={source:restored};page.value='settings';window.history.replaceState(null,'','#settings');
+ }catch{inform('来源恢复链接无效，请重新打开恢复表单',true);}
+}
 function newSource(){sourceEditor.value={source:null};}
 async function saveSource(value){busy.value=true;
  try{const result=await api('/sources',{method:'POST',body:value});sourceEditor.value=null;await loadSettings();inform(result.enabled?'来源已保存，开始收取':'配置已保存，自动收取已暂停');
@@ -80,7 +93,7 @@ async function importRecords(){busy.value=true;try{const result=await api('/impo
 async function backup(){try{const data=await api('/backup');const url=URL.createObjectURL(new Blob([JSON.stringify(data,null,2)],{type:'application/json'}));const a=document.createElement('a');a.href=url;a.download='mimo-backup-'+new Date().toISOString().slice(0,10)+'.json';a.click();setTimeout(()=>URL.revokeObjectURL(url),1000);}catch(e){handle(e);}}
 function openBackupImport(){importForm.value={text:'',format:'json',name:''};importOpen.value=true;}
 async function restoreBackup(){busy.value=true;try{const result=await api('/import',{method:'POST',body:{text:importForm.value.text,format:'json',site:''}});importOpen.value=false;inform('已恢复 '+result.count+' 条内容');await refresh();}catch(e){handle(e);}finally{busy.value=false;}}
-onMounted(async()=>{try{authenticated.value=(await api('/auth/session')).authenticated;if(authenticated.value)await refresh();}catch(e){handle(e);}finally{checking.value=false;}
+onMounted(async()=>{try{authenticated.value=(await api('/auth/session')).authenticated;if(authenticated.value){await refresh();openRestoredSource();}}catch(e){handle(e);}finally{checking.value=false;}
  pollTimer=setInterval(()=>{if(authenticated.value&&!document.hidden&&!busy.value){reload(true);if(page.value==='settings')api('/sources').then(s=>sources.value=s).catch(()=>{});}},60000);
 });
 onBeforeUnmount(()=>{clearInterval(pollTimer);clearTimeout(filterTimer);clearTimeout(noticeTimer);});

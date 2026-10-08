@@ -14,7 +14,7 @@ async function discoverMailboxes(){discovering.value=true;connectionError.value=
 function save(){emit('save',{id:form.id,name:form.name,type:form.type,site:form.site,enabled:form.enabled,secret:form.secret||undefined,config:{...form.config}});}
 </script>
 <template>
-<Modal :title="source?'编辑来源':'添加信息来源'" @close="emit('close')">
+<Modal :title="source?.restoreDraft?'恢复已保存的来源':source?.id?'编辑来源':'添加信息来源'" @close="emit('close')">
  <form id="source-form" class="stack" @submit.prevent="save">
   <label>来源类型<select v-model="form.type" :disabled="!!source" @change="changeType"><option value="imap">IMAP 邮箱</option><option value="hostinger">Hostinger 邮箱（API）</option><option value="get">得到大脑（Get 笔记）</option><option value="api">自定义 API</option></select></label>
   <label v-if="form.type==='imap'">邮箱服务商<select v-model="preset" @change="changePreset"><option v-for="(p,key) in providers" :key="key" :value="key">{{p[0]}}</option></select></label>
