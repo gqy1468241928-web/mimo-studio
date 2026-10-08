@@ -1,0 +1,7 @@
+# MiMo Node.js routing: application files remain outside public_html.
+PassengerAppRoot /home/u888237670/domains/mimo-studio.top/hbuilds/current/nodejs
+PassengerBaseURI /
+PassengerAppType node
+PassengerNodejs /opt/alt/alt-nodejs24/root/usr/bin/node
+PassengerStartupFile server.mjs
+PassengerAppEnv production

@@ -3,6 +3,7 @@ import fs from 'node:fs';
 import {fileURLToPath} from 'node:url';
 import {openStore} from './db.mjs';
 import {createSynchronizer} from './sources.mjs';
+import {ensureHostingerRouting} from './hostinger.mjs';
 const here=path.dirname(fileURLToPath(import.meta.url));
 let store,synchronizer;
 try{
@@ -14,10 +15,11 @@ try{
  }
  }
  if(!process.env.DB_NAME||!process.env.DB_USER||!process.env.DB_PASSWORD||!/^[a-f0-9]{64}$/i.test(process.env.CONFIG_ENCRYPTION_KEY||''))throw Object.assign(new Error('Private sync configuration missing'),{code:'SYNC_CONFIG_MISSING'});
+ const routing=await ensureHostingerRouting(here,{production:process.env.NODE_ENV==='production'});
  store=await openStore();
  synchronizer=createSynchronizer(store,process.env.CONFIG_ENCRYPTION_KEY);
  const output=await synchronizer.tick({graceMs:60000}),failures=output.results.filter(x=>x.ok===false).length;
- console.log(JSON.stringify({ok:failures===0,sources:output.results.length,fetched:output.results.reduce((sum,x)=>sum+(x.count||0),0),failures}));
+ console.log(JSON.stringify({ok:failures===0,sources:output.results.length,fetched:output.results.reduce((sum,x)=>sum+(x.count||0),0),failures,routingRepaired:routing.created}));
  process.exitCode=failures?1:0;
 }catch(e){console.error(JSON.stringify({ok:false,error:e.code||'SYNC_FAILED'}));process.exitCode=1;}
 finally{synchronizer?.stop();await store?.close();}
